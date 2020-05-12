@@ -47,14 +47,14 @@ int main(int argc,char * argv[]){
     pweor->InitQueryCorp(query_data_file);
     pweor->InitDocCorp(doc_data_file);
     pweor->LoadDataSet(rerank_data_file,sample_total_limited,sample_perpositive_limited,sample_perquery_limited);
-    pweor->InitWordVec(word_embed_file,true); // initial word embedding 
+    pweor->InitWordVec(word_embed_file,true); // initial word embedding
     pweor->InitTopKNeiB(); // calculate word similarity in advance
 
     pweor->RunningMultiThread(fold_size,max_iteration); //simi
     pweor->GetRanklist(save_ranklist_file.c_str());
     delete pweor;
     pweor = NULL;
-    cout<<"Done ....\n";
+    cout<<"Done ....\n"<<endl;
     return 0;
 }
 

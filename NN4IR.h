@@ -1,6 +1,6 @@
 /*
  * date 0
- * author eshion 
+ * author eshion
 */
 
 #ifndef _NN4IR_H_
@@ -20,6 +20,7 @@
 #include<algorithm>
 #include<thread>
 #include<omp.h>
+#include<random>
 #include"util.h"
 #include"Config.h"
 #include "Eigen/Dense"
@@ -122,7 +123,7 @@ namespace nsnn4ir{
             unordered_map<QINDEX,unordered_map<WINDEX,double>> m_QueryCorp;
             unordered_map<QINDEX,vector<WINDEX>> m_seqQueryCorp;
             unordered_map<WINDEX,unordered_map<WINDEX,double>> m_QTopKNeighbor;
-            unordered_map<QINDEX,multimap<double,string,std::greater<double>>> m_RankInfo; // save final ranklist 
+            unordered_map<QINDEX,multimap<double,string,std::greater<double>>> m_RankInfo; // save final ranklist
             Act_Func m_actfunc;
             double NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const vector<RMatrixXd> & vW1,const VectorXd & vW2,const vector<VectorXd> & vW3,vector<RMatrixXd> & vW1_gd,VectorXd & vW2_gd,vector<VectorXd> & vW3_gd,bool bTrain);
         public:
