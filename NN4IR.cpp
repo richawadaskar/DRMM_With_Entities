@@ -19,7 +19,7 @@ void NN4IR::BruceKFold(vector<QINDEX> vecQIndex,vector<vector<QINDEX>> &vecTrain
             vecTrain[1] = {301,308,312,322,327,328,338,343,348,349,352,360,364,365,369,371,374,386,390,397,403,419,422,423,424,432,434,440,446,602,604,611,623,624,627,632,638,643,651,652,663,674,675,678,680,683,688,689,695,698};
             vecTrain[2] = {306,307,313,321,324,326,334,347,351,354,358,361,362,363,376,380,382,396,404,413,415,417,427,436,437,439,444,445,449,450,603,605,606,614,620,622,626,628,631,637,644,648,661,664,666,671,677,685,687,693};
             vecTrain[3] = {320,325,330,332,335,337,342,344,350,355,368,377,379,387,393,398,402,405,407,408,412,420,421,425,430,431,435,438,616,618,625,630,633,636,639,649,650,653,655,657,659,667,668,672,673,676,682,686,691,697};
-            vecTrain[4] = {304,305,310,311,314,315,318,329,333,339,340,345,346,353,359,366,367,372,375,384,385,388,389,391,395,399,400,401,409,416,418,429,441,442,443,609,610,613,615,621,629,634,640,645,658,660,681,694,696,699}; 
+            vecTrain[4] = {304,305,310,311,314,315,318,329,333,339,340,345,346,353,359,366,367,372,375,384,385,388,389,391,395,399,400,401,409,416,418,429,441,442,443,609,610,613,615,621,629,634,640,645,658,660,681,694,696,699};
             break;
         case DGOV2:
             vecTrain[0] = {712,722,731,740,749,750,751,759,764,765,774,775,782,784,785,786,788,789,794,798,801,805,823,824,825,832,833,835,845,850};
@@ -48,7 +48,8 @@ void NN4IR::BruceKFold(vector<QINDEX> vecQIndex,vector<vector<QINDEX>> &vecTrain
 }
 NN4IR::~NN4IR(){
 }
-void NN4IR::InitWordVec(const std::string & sfilename,bool binary){
+// It reads word embedding file here and processes word and embedding space of it!
+void NN4IR::InitWordVec(const std::string & sfilename,bool binary, int wordOrEntity = 0){
     if(binary){
         long long row,col;
         FILE *f = fopen(sfilename.c_str(),"rb");
@@ -72,24 +73,49 @@ void NN4IR::InitWordVec(const std::string & sfilename,bool binary){
             VectorXd currvd = VectorXd::Zero(col);
             for(int j = 0 ; j < col; ++ j)  currvd(j) = currv[j];
             //currvd.normalize();
-            if(m_words.find(text) == m_words.end()){
-                mpOutVocab.insert(make_pair(text,currvd));
-                continue;
+            if(wordOrEntity == 0){
+                if(m_words.find(text) == m_words.end()){ //Global Variables
+                    mpOutVocab.insert(make_pair(text,currvd));
+                    continue;
+                }
+                m_W.insert(make_pair(m_words[text],currvd)); //Global Variables
             }
-            m_W.insert(make_pair(m_words[text],currvd));
+
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity == 1){
+                if(e_words.find(text) == e_words.end()){ //Global Variables
+                    mpOutVocab.insert(make_pair(text,currvd));
+                    continue;
+                }
+                e_W.insert(make_pair(m_words[text],currvd)); //Global Variables
+            }
+
         }
         fclose(f);
+        // Embedding file reading completed
 
+        // Making a hashmap of string and VectorXd
         unordered_map<string,VectorXd>::iterator itF = mpOutVocab.begin();
         for(; itF != mpOutVocab.end(); ++itF){
             string stext =itF->first;
             std::transform(stext.begin(),stext.end(),stext.begin(),::tolower);
-            if(m_words.find(stext) == m_words.end())    continue;
-            if(m_W.find(m_words[stext]) == m_W.end()){
-                m_W.insert(make_pair(m_words[stext],itF->second));
+
+            if(wordOrEntity == 0){
+                if(m_words.find(stext) == m_words.end())    continue;
+                if(m_W.find(m_words[stext]) == m_W.end()){
+                    m_W.insert(make_pair(m_words[stext],itF->second));
+                }
+            }
+
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity == 1){
+                if(e_words.find(stext) == e_words.end())    continue;
+                if(e_W.find(e_words[stext]) == e_W.end()){
+                    e_W.insert(make_pair(m_words[stext],itF->second));
+                }
             }
         }
-    }else{
+    }else{ // What does it do in this part of the porgram when the file is not given
         ifstream in(sfilename);
         string s,text;
         std::getline(in,s);
@@ -104,11 +130,23 @@ void NN4IR::InitWordVec(const std::string & sfilename,bool binary){
             for(size_t i = 0 ;i < word_dim; ++i){
                 iss >> currv[i];
             }
-            if(m_words.find(text) == m_words.end()){
-                mpOutVocab.insert(make_pair(text,currv));
-                continue;
+
+            if(wordOrEntity == 0){
+                if(m_words.find(text) == m_words.end()){
+                    mpOutVocab.insert(make_pair(text,currv));
+                    continue;
+                }
+                m_W.insert(make_pair(m_words[text],std::move(currv)));
             }
-            m_W.insert(make_pair(m_words[text],std::move(currv)));
+
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity == 1){
+                if(e_words.find(text) == e_words.end()){
+                    mpOutVocab.insert(make_pair(text,currv));
+                    continue;
+                }
+                e_W.insert(make_pair(e_words[text],std::move(currv)));
+            }
         }
         in.close();
         in.clear();
@@ -116,19 +154,40 @@ void NN4IR::InitWordVec(const std::string & sfilename,bool binary){
         for(; itF != mpOutVocab.end(); ++itF){
             string stext =itF->first;
             std::transform(stext.begin(),stext.end(),stext.begin(),::tolower);
-            if(m_words.find(stext) == m_words.end())    continue;
-            if(m_W.find(m_words[stext]) == m_W.end()){
-                m_W.insert(make_pair(m_words[stext],itF->second));
+
+            if(wordOrEntity == 0){
+                if(m_words.find(stext) == m_words.end())    continue; // Global variables
+                if(m_W.find(m_words[stext]) == m_W.end()){
+                    m_W.insert(make_pair(m_words[stext],itF->second));
+                }
             }
+
+           // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+           if(wordOrEntity == 1){
+                if(e_words.find(stext) == e_words.end())    continue; // Global variables
+                if(e_W.find(m_words[stext]) == e_W.end()){
+                    e_W.insert(make_pair(e_words[stext],itF->second));
+                }
+           }
         }
     }
 }
-void NN4IR::InitCorpInfo(const std::string & sDFCFfile,long long docNum){
-    m_N = docNum;
+void NN4IR::InitCorpInfo(const std::string & sDFCFfile,long long docNum, int wordOrEntity == 0){
+    if(wordOrEntity == 0)    m_N = docNum;
+
+    if(wordOrEntity == 0)    e_N = docNum;
     LoadTermDFCF(sDFCFfile);
 }
-void NN4IR::InitDocCorp(const std::string & sDocFile){
-    assert(!m_vocab.empty() && !m_words.empty());
+void NN4IR::InitDocCorp(const std::string & sDocFile, int wordOrEntity = 0){
+    if( wordOrEntity == 0){
+        assert(!m_vocab.empty() && !m_words.empty());
+    }
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if( wordOrEntity == 1){
+    assert(!e_vocab.empty() && !e_words.empty());
+    }
+
     ifstream fin(sDocFile.c_str());
     if(!fin){
 		throw MyError(" Error: open document content file failed!");
@@ -152,20 +211,49 @@ void NN4IR::InitDocCorp(const std::string & sDocFile){
             string word = vecline[j].substr(0,pos);
             int count = atoi(vecline[j].substr(pos+1).c_str());
             //string word = vecline[j];
-            if(m_words.find(word) == m_words.end())   continue;
-            for(int i = 0 ; i < count; ++i)
-            currdocinfo.m_docword.emplace_back(m_words[word]);
-            //countlen += count;
+
+            if(wordOrEntity == 0){
+                if(m_words.find(word) == m_words.end())   continue; //If words in word embedding then it places its index?
+                for(int i = 0 ; i < count; ++i)
+                currdocinfo.m_docword.emplace_back(m_words[word]); // append to the end of the container
+                //countlen += count;
+            }
+
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity == 1){
+                if(e_words.find(word) == e_words.end())   continue; //If words in word embedding then it places its index?
+                for(int i = 0 ; i < count; ++i)
+                currdocinfo.m_docword.emplace_back(m_words[word]); // append to the end of the container
+                //countlen += count;
+            }
         }
         assert(currdocinfo.m_docword.size() > 0);
-        m_DocCorp.insert(make_pair(did,currdocinfo));
+
+        if(wordOrEntity == 0){
+            m_DocCorp.insert(make_pair(did,currdocinfo)); // Links document id to index of words that appears in it
+        }
+
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        if(wordOrEntity == 1){
+            e_DocCorp.insert(make_pair(did,currdocinfo)); // Links document id to index of words that appears in it
+        }
+
         ++inum ;
+
     }
     MSGPrint("Init document corpus finished, doc count:%d ...\n", m_DocCorp.size());
     fflush(stdout);
 }
-void NN4IR::InitQueryCorp(const std::string & sQueryFile){
-    assert(!m_words.empty() && !m_vocab.empty());
+void NN4IR::InitQueryCorp(const std::string & sQueryFile, int wordOrEntity = 0){
+    if(wordOrEntity == 0){
+        assert(!m_words.empty() && !m_vocab.empty());
+    }
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1){
+        assert(!1_words.empty() && !e_vocab.empty());
+    }
+
     ifstream fin(sQueryFile.c_str());
     if(!fin){
 		throw MyError(" Error: open query content file failed!");
@@ -181,21 +269,53 @@ void NN4IR::InitQueryCorp(const std::string & sQueryFile){
         if(vecline.empty()) continue;
         QINDEX cqindex = atol(vecline[0].c_str());
         for(size_t j = 1 ; j < vecline.size(); ++j){
-            if(m_words.find(vecline[j]) == m_words.end()){   
-                //printf(" query word : %s not found.\n", vecline[j].c_str()); 
-                continue;}
-            pair<unordered_map<WINDEX,double>::iterator,bool> ret = currqinfo.insert(make_pair(m_words[vecline[j]],1));
-            if(!ret.second) ++ ret.first->second;
 
-            currqinfo_seq.push_back(m_words[vecline[j]]);
+            if(wordOrEntity == 0){
+                if(m_words.find(vecline[j]) == m_words.end()){
+                    //printf(" query word : %s not found.\n", vecline[j].c_str());
+                    continue;
+                }
+                pair<unordered_map<WINDEX,double>::iterator,bool> ret = currqinfo.insert(make_pair(m_words[vecline[j]],1));
+                if(!ret.second) ++ ret.first->second;
+
+                currqinfo_seq.push_back(m_words[vecline[j]]);
+            }
+
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity == 1){
+                if(e_words.find(vecline[j]) == e_words.end()){
+                    //printf(" query word : %s not found.\n", vecline[j].c_str());
+                    continue;
+                }
+                pair<unordered_map<WINDEX,double>::iterator,bool> ret = currqinfo.insert(make_pair(e_words[vecline[j]],1));
+                if(!ret.second) ++ ret.first->second;
+
+                currqinfo_seq.push_back(e_words[vecline[j]]);
+            }
         }
-        m_QueryCorp.insert(make_pair(cqindex,currqinfo));
-        m_seqQueryCorp.insert(make_pair(cqindex,currqinfo_seq));
+        if(wordOrEntity == 0){
+            m_QueryCorp.insert(make_pair(cqindex,currqinfo));
+            m_seqQueryCorp.insert(make_pair(cqindex,currqinfo_seq));
+        }
+
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        if(wordOrEntity == 1){
+            e_QueryCorp.insert(make_pair(cqindex,currqinfo));
+            e_seqQueryCorp.insert(make_pair(cqindex,currqinfo_seq));
+        }
     }
-    MSGPrint("Init query corpus finished, query count:%d ...\n", m_QueryCorp.size());
+    if(wordOrEntity == 0){
+        MSGPrint("Init query corpus finished, query count:%d ...\n", m_QueryCorp.size());
+    }
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 0){
+        MSGPrint("Init query corpus finished, query count:%d ...\n", m_QueryCorp.size());
+    }
+
     fflush(stdout);
 }
-void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,int num_of_instance){
+void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,int num_of_instance, int wordOrEntity = 0){ // takes dataset to be re ranked
     ifstream fin(sfilename.c_str());
     if(!fin){
 		throw MyError(" Error: open ranklist file failed!");
@@ -212,18 +332,35 @@ void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,in
         if(vecline.size() != 6) continue;
         assert(vecline.size() == 6);
         QINDEX currqindex = atol(vecline[0].c_str()); // query no
-        if(m_dataset.find(currqindex) == m_dataset.end()){
-            m_dataset.insert(make_pair(currqindex,vector<string>()));
+
+        if(wordOrEntity == 0){
+            if(m_dataset.find(currqindex) == m_dataset.end()){
+                m_dataset.insert(make_pair(currqindex,vector<string>()));
+            }
+            if(errordoc.find(vecline[2]) != errordoc.end()) continue;
+            if((int)m_dataset[currqindex].size() < topk){ ++inum;     m_dataset[currqindex].push_back(vecline[2]);  }
         }
-        if(errordoc.find(vecline[2]) != errordoc.end()) continue;
-        if((int)m_dataset[currqindex].size() < topk){ ++inum;     m_dataset[currqindex].push_back(vecline[2]);  }
+
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        if(wordOrEntity == 1){
+            if(e_dataset.find(currqindex) == e_dataset.end()){
+                e_dataset.insert(make_pair(currqindex,vector<string>()));
+            }
+            if(errordoc.find(vecline[2]) != errordoc.end()) continue;
+            if((int)e_dataset[currqindex].size() < topk){ ++inum;     e_dataset[currqindex].push_back(vecline[2]);  }
+        }
     }
     MSGPrint("Init data set finished, records count:%d ...\n", inum);
     fflush(stdout);
 
     // generate pair-wise instance: in order to not be dominated by the queries with more relevant document, we made a trick that the query with more relevant document will generate less pairs.
     vector<int> all_pos;
-    for(auto iter = m_relinfo.begin(); iter != m_relinfo.end(); ++ iter)    all_pos.push_back(iter->second.m_numofpos);
+    if(wordOrEntity == 0){
+        for(auto iter = m_relinfo.begin(); iter != m_relinfo.end(); ++ iter)    all_pos.push_back(iter->second.m_numofpos);
+    }
+    if(wordOrEntity == 1){
+        for(auto iter = m_relinfo.begin(); iter != m_relinfo.end(); ++ iter)    all_pos.push_back(iter->second.m_numofpos);
+    }
     std::sort(all_pos.begin(),all_pos.end(),[](const int a,const int b) -> bool{ return a < b; });
     int avg_pos_34 = all_pos[all_pos.size() * 3 / 4];
     int avg_pos_24 = all_pos[all_pos.size() / 2];
@@ -231,68 +368,132 @@ void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,in
     random_device rdp,rdn;
     mt19937 ren(rdn());
     long totalinstance = 0;
-    if(m_DocCorp.size() <= 0 || m_QueryCorp.size() <= 0){
-		  throw MyError(" Error: query corp or doc corp should be initialized!");
+    if(wordOrEntity == 1 && (m_DocCorp.size() <= 0 || m_QueryCorp.size() <= 0) ){
+		  throw MyError(" Error: query corp or doc corp should be initialized for words!");
     }
-    for(auto iter = m_dataset.begin(); iter != m_dataset.end(); ++ iter){
-        QINDEX cqindex = iter->first;
-        if(m_QueryCorp.find(cqindex) == m_QueryCorp.end() || m_QueryCorp[cqindex].size() <= 0)  continue;
-        m_QInstance.insert(make_pair(cqindex,vector<pair<string,string>>()));
-        map<double,vector<string>,std::greater<double>> currsamples;
-        int num_pos_currquery = 0;
-        for(auto viter = iter->second.begin(); viter != iter->second.end(); ++ viter){
-            if(m_DocCorp.find(*viter) == m_DocCorp.end() || m_DocCorp[*viter].m_docword.size() <= 0) continue;
-            double currlabel = 0.0;
-            if(m_relinfo[cqindex].m_docrel.find(*viter) != m_relinfo[cqindex].m_docrel.end()){
-                currlabel = m_relinfo[cqindex].m_docrel[*viter];
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1 && (e_DocCorp.size() <= 0 || e_QueryCorp.size() <= 0) ){
+		  throw MyError(" Error: query corp or doc corp should be initialized for entity!");
+    }
+    if(wordOrEntity == 0){
+        for(auto iter = m_dataset.begin(); iter != m_dataset.end(); ++ iter){
+            QINDEX cqindex = iter->first;
+            if(m_QueryCorp.find(cqindex) == m_QueryCorp.end() || m_QueryCorp[cqindex].size() <= 0)  continue;
+            m_QInstance.insert(make_pair(cqindex,vector<pair<string,string>>()));
+            map<double,vector<string>,std::greater<double>> currsamples;
+            int num_pos_currquery = 0;
+            for(auto viter = iter->second.begin(); viter != iter->second.end(); ++ viter){ //looking for matching of document word for reranking
+                if(m_DocCorp.find(*viter) == m_DocCorp.end() || m_DocCorp[*viter].m_docword.size() <= 0) continue;
+                double currlabel = 0.0;
+                if(m_relinfo[cqindex].m_docrel.find(*viter) != m_relinfo[cqindex].m_docrel.end()){
+                    currlabel = m_relinfo[cqindex].m_docrel[*viter];
+                }
+                if(currsamples.find(currlabel) == currsamples.end())    currsamples.insert(make_pair(currlabel,vector<string>()));
+                if(currlabel > 0)  ++ num_pos_currquery;
+                currsamples[currlabel].push_back(*viter);
             }
-            if(currsamples.find(currlabel) == currsamples.end())    currsamples.insert(make_pair(currlabel,vector<string>()));
-            if(currlabel > 0)  ++ num_pos_currquery;
-            currsamples[currlabel].push_back(*viter);
-        }
-        int curr_pernegative = pernegative;
-        int curr_num_of_instance = num_of_instance;
-        if(num_pos_currquery <= avg_pos_14)    {   curr_pernegative *= 5; curr_num_of_instance *= 5; }
-        else if(num_pos_currquery <= avg_pos_24)    {   curr_pernegative *= 3; curr_num_of_instance *= 3; }
-        else if(num_pos_currquery <= avg_pos_34)    {   curr_pernegative *= 1.5; curr_num_of_instance *= 1.5; }
-        int total_instance = 0;
-        for(auto csiter = currsamples.begin(); csiter != currsamples.end(); ++ csiter){
-            for(auto next_csiter = std::next(csiter,1); next_csiter != currsamples.end(); ++ next_csiter)
-                total_instance += csiter->second.size() * next_csiter->second.size();
-        }
-        total_instance = total_instance < curr_num_of_instance ? total_instance : curr_num_of_instance;
-        unordered_set<string> allready;
-        int curr_q_instance = 0;
-        for(auto csiter = currsamples.begin(); csiter != currsamples.end(); ++ csiter){
-            for(int i = 0 ; i < csiter->second.size(); ++ i){
-                vector<string> negatives;
+            int curr_pernegative = pernegative;
+            int curr_num_of_instance = num_of_instance;
+            if(num_pos_currquery <= avg_pos_14)    {   curr_pernegative *= 5; curr_num_of_instance *= 5; }
+            else if(num_pos_currquery <= avg_pos_24)    {   curr_pernegative *= 3; curr_num_of_instance *= 3; }
+            else if(num_pos_currquery <= avg_pos_34)    {   curr_pernegative *= 1.5; curr_num_of_instance *= 1.5; }
+            int total_instance = 0;
+            for(auto csiter = currsamples.begin(); csiter != currsamples.end(); ++ csiter){
                 for(auto next_csiter = std::next(csiter,1); next_csiter != currsamples.end(); ++ next_csiter)
-                    for(int j = 0 ; j < next_csiter->second.size(); ++ j){
-                        negatives.push_back(next_csiter->second[j]);
+                    total_instance += csiter->second.size() * next_csiter->second.size();
+            }
+            total_instance = total_instance < curr_num_of_instance ? total_instance : curr_num_of_instance;
+            unordered_set<string> allready;
+            int curr_q_instance = 0;
+            for(auto csiter = currsamples.begin(); csiter != currsamples.end(); ++ csiter){
+                for(int i = 0 ; i < csiter->second.size(); ++ i){
+                    vector<string> negatives;
+                    for(auto next_csiter = std::next(csiter,1); next_csiter != currsamples.end(); ++ next_csiter)
+                        for(int j = 0 ; j < next_csiter->second.size(); ++ j){
+                            negatives.push_back(next_csiter->second[j]);
+                        }
+                    uniform_int_distribution<int> uin(0,negatives.size()-1);
+                    for(int j = 0 ; j < negatives.size() && j < curr_pernegative; ){
+                        if(allready.size() >= total_instance) break;
+                        int inegdoc = uin(ren);
+                        //int inegdoc = j;
+                        string skey = csiter->second[i]+negatives[inegdoc];
+                        if(allready.find(skey) != allready.end()) continue;
+                        allready.insert(skey);
+                        m_QInstance[cqindex].push_back(make_pair(csiter->second[i],negatives[inegdoc]));
+                        ++ totalinstance;
+                        ++ curr_q_instance;
+                        ++ j;
                     }
-                uniform_int_distribution<int> uin(0,negatives.size()-1);
-                for(int j = 0 ; j < negatives.size() && j < curr_pernegative; ){
                     if(allready.size() >= total_instance) break;
-                    int inegdoc = uin(ren);
-                    //int inegdoc = j;
-                    string skey = csiter->second[i]+negatives[inegdoc];
-                    if(allready.find(skey) != allready.end()) continue;
-                    allready.insert(skey);
-                    m_QInstance[cqindex].push_back(make_pair(csiter->second[i],negatives[inegdoc]));
-                    ++ totalinstance;
-                    ++ curr_q_instance;
-                    ++ j;
                 }
                 if(allready.size() >= total_instance) break;
             }
-            if(allready.size() >= total_instance) break;
+        }
+    }
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1){
+        for(auto iter = e_dataset.begin(); iter != e_dataset.end(); ++ iter){
+            QINDEX cqindex = iter->first;
+            if(e_QueryCorp.find(cqindex) == e_QueryCorp.end() || e_QueryCorp[cqindex].size() <= 0)  continue;
+            e_QInstance.insert(make_pair(cqindex,vector<pair<string,string>>()));
+            map<double,vector<string>,std::greater<double>> currsamples;
+            int num_pos_currquery = 0;
+            for(auto viter = iter->second.begin(); viter != iter->second.end(); ++ viter){ //looking for matching of document word for reranking
+                if(e_DocCorp.find(*viter) == e_DocCorp.end() || e_DocCorp[*viter].e_docword.size() <= 0) continue;
+                double currlabel = 0.0;
+                if(e_relinfo[cqindex].m_docrel.find(*viter) != e_relinfo[cqindex].m_docrel.end()){
+                    currlabel = e_relinfo[cqindex].m_docrel[*viter];
+                }
+                if(currsamples.find(currlabel) == currsamples.end())    currsamples.insert(make_pair(currlabel,vector<string>()));
+                if(currlabel > 0)  ++ num_pos_currquery;
+                currsamples[currlabel].push_back(*viter);
+            }
+            int curr_pernegative = pernegative;
+            int curr_num_of_instance = num_of_instance;
+            if(num_pos_currquery <= avg_pos_14)    {   curr_pernegative *= 5; curr_num_of_instance *= 5; }
+            else if(num_pos_currquery <= avg_pos_24)    {   curr_pernegative *= 3; curr_num_of_instance *= 3; }
+            else if(num_pos_currquery <= avg_pos_34)    {   curr_pernegative *= 1.5; curr_num_of_instance *= 1.5; }
+            int total_instance = 0;
+            for(auto csiter = currsamples.begin(); csiter != currsamples.end(); ++ csiter){
+                for(auto next_csiter = std::next(csiter,1); next_csiter != currsamples.end(); ++ next_csiter)
+                    total_instance += csiter->second.size() * next_csiter->second.size();
+            }
+            total_instance = total_instance < curr_num_of_instance ? total_instance : curr_num_of_instance;
+            unordered_set<string> allready;
+            int curr_q_instance = 0;
+            for(auto csiter = currsamples.begin(); csiter != currsamples.end(); ++ csiter){
+                for(int i = 0 ; i < csiter->second.size(); ++ i){
+                    vector<string> negatives;
+                    for(auto next_csiter = std::next(csiter,1); next_csiter != currsamples.end(); ++ next_csiter)
+                        for(int j = 0 ; j < next_csiter->second.size(); ++ j){
+                            negatives.push_back(next_csiter->second[j]);
+                        }
+                    uniform_int_distribution<int> uin(0,negatives.size()-1);
+                    for(int j = 0 ; j < negatives.size() && j < curr_pernegative; ){
+                        if(allready.size() >= total_instance) break;
+                        int inegdoc = uin(ren);
+                        //int inegdoc = j;
+                        string skey = csiter->second[i]+negatives[inegdoc];
+                        if(allready.find(skey) != allready.end()) continue;
+                        allready.insert(skey);
+                        e_QInstance[cqindex].push_back(make_pair(csiter->second[i],negatives[inegdoc]));
+                        ++ totalinstance;
+                        ++ curr_q_instance;
+                        ++ j;
+                    }
+                    if(allready.size() >= total_instance) break;
+                }
+                if(allready.size() >= total_instance) break;
+            }
         }
     }
     MSGPrint("Generate pair-wise samples: %d .\n", totalinstance);
 
     fflush(stdout);
 }
-void NN4IR::InitGroundTruth(const std::string &sRelFile,const std::string &sIDCGFile,double relevance_level){
+void NN4IR::InitGroundTruth(const std::string &sRelFile,const std::string &sIDCGFile,double relevance_level, int wordOrEntity = 0){
     string sline;
     ifstream fin0(sIDCGFile.c_str(),ios::in);
     if(!fin0){
@@ -307,8 +508,17 @@ void NN4IR::InitGroundTruth(const std::string &sRelFile,const std::string &sIDCG
         QINDEX currqindex = atol(vecline[0].c_str()); // query no
         double idcg = atof(vecline[1].c_str());
         tmpqrelinfo.m_idcg = idcg;
-        assert(m_relinfo.find(currqindex) == m_relinfo.end());
-        m_relinfo.insert(make_pair(currqindex,tmpqrelinfo));
+
+        if(wordOrEntity == 0){
+            assert(m_relinfo.find(currqindex) == m_relinfo.end());
+            m_relinfo.insert(make_pair(currqindex,tmpqrelinfo));
+        }
+
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        if(wordOrEntity == 1){
+            assert(e_relinfo.find(currqindex) == e_relinfo.end());
+            e_relinfo.insert(make_pair(currqindex,tmpqrelinfo));
+        }
     }
     fin0.close();
     ifstream fin(sRelFile.c_str());
@@ -323,24 +533,51 @@ void NN4IR::InitGroundTruth(const std::string &sRelFile,const std::string &sIDCG
         QINDEX currqindex = atol(vecline[0].c_str()); // query no
         double clabel = atof(vecline[3].c_str());
         clabel = clabel >= relevance_level ? clabel : 0;
-        m_MAX_JUDGEMENT = clabel > m_MAX_JUDGEMENT ? clabel : m_MAX_JUDGEMENT;
-        //assert(m_relinfo.find(currqindex) != m_relinfo.end());
-        m_relinfo[currqindex].m_docrel.insert(make_pair(vecline[2],clabel));
-        if(clabel >= relevance_level)   m_relinfo[currqindex].m_numofpos += 1;
+
+        if(wordOrEntity == 0){
+            m_MAX_JUDGEMENT = clabel > m_MAX_JUDGEMENT ? clabel : m_MAX_JUDGEMENT;
+            //assert(m_relinfo.find(currqindex) != m_relinfo.end());
+
+            m_relinfo[currqindex].m_docrel.insert(make_pair(vecline[2],clabel));
+            if(clabel >= relevance_level)   m_relinfo[currqindex].m_numofpos += 1;
+        }
+
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        if(wordOrEntity == 1){
+            e_MAX_JUDGEMENT = clabel > e_MAX_JUDGEMENT ? clabel : e_MAX_JUDGEMENT;
+            //assert(m_relinfo.find(currqindex) != m_relinfo.end());
+
+            e_relinfo[currqindex].m_docrel.insert(make_pair(vecline[2],clabel));
+            if(clabel >= relevance_level)   e_relinfo[currqindex].m_numofpos += 1;
+        }
+
     }
     fin.close();
-    m_MAX_JUDGEMENT = 4;
-    MSGPrint("Init groundtruth data finished, records num:%u.\n",m_relinfo.size());
+
+    if(wordOrEntity == 0){
+        m_MAX_JUDGEMENT = 4;
+        MSGPrint("Init groundtruth data finished, records num:%u.\n",m_relinfo.size());
+    }
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1){
+        e_MAX_JUDGEMENT = 4;
+        MSGPrint("Init groundtruth data finished, records num:%u.\n",e_relinfo.size());
+    }
 
     fflush(stdout);
 }
-void NN4IR::LoadTermDFCF(const std::string &sfilename){
+void NN4IR::LoadTermDFCF(const std::string &sfilename, int wordOrEntity = 0){
     fstream fin(sfilename,std::ios::in);
     if(!fin){
 		throw MyError(" Error: open term df&cf file failed!");
     }
     string sline;
-    m_VocabSize = 1;
+    if( wordOrEntity == 0)    m_VocabSize = 1;
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if( wordOrEntity == 1)    e_VocabSize = 1;
+
     while(getline(fin,sline)){
         istringstream iss(sline);
         string word;
@@ -352,7 +589,7 @@ void NN4IR::LoadTermDFCF(const std::string &sfilename){
         std::transform(word.begin(),word.end(),word.begin(),::tolower);
 
         assert(!word.empty());
-        if(m_words.find(word) == m_words.end()){
+        if(wordOrEntity == 1 && m_words.find(word) == m_words.end()){
             m_words[word] = m_VocabSize;
             double curridf = log((double)(m_N + 1) / currdf);
             assert(curridf > 0);
@@ -360,8 +597,24 @@ void NN4IR::LoadTermDFCF(const std::string &sfilename){
             m_vocab.insert(make_pair(m_VocabSize,_stWordInfo(word,currdf,currcf,curridf,currcfidf)));
             ++m_VocabSize;
         }
+
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        if(wordOrEntity == 1 && e_words.find(word) == e_words.end()){
+            e_words[word] = e_VocabSize;
+            double curridf = log((double)(e_N + 1) / currdf);
+            assert(curridf > 0);
+            double currcfidf = currcf * curridf;
+            e_vocab.insert(make_pair(e_VocabSize,_stWordInfo(word,currdf,currcf,curridf,currcfidf)));
+            ++e_VocabSize;
+        }
     }
-    MSGPrint("Init Term DF & CF finished, vocab size:%d.\n", m_words.size());
+    if(wordOrentity == 0)
+        MSGPrint("Init Term DF & CF finished, vocab size:%d.\n", m_words.size());
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrentity == 1)
+        MSGPrint("Init Term DF & CF finished, vocab size:%d.\n", e_words.size());
+
     fflush(stdout);
 }
 void NN4IR::kFold(vector<QINDEX> vecQIndex,vector<vector<QINDEX>> & vecTrain,int nFold,bool shuffle){
@@ -381,33 +634,67 @@ void NN4IR::kFold(vector<QINDEX> vecQIndex,vector<vector<QINDEX>> & vecTrain,int
     }
 }
 
-void NN4IR::InitTopKNeiB(){
-    m_QTopKNeighbor.clear();
-    unordered_set<WINDEX> allquerywords;
-    for(auto iter = m_QueryCorp.begin(); iter != m_QueryCorp.end(); ++ iter){
-        for_each(iter->second.begin(),iter->second.end(),[&](const pair<WINDEX,double> & k){    
-                allquerywords.insert(k.first);
-                });
+void NN4IR::InitTopKNeiB(int wordOrEntity = 0){
+    if(wordOrEntity == 0){
+        m_QTopKNeighbor.clear();
+        unordered_set<WINDEX> allquerywords;
+        for(auto iter = m_QueryCorp.begin(); iter != m_QueryCorp.end(); ++ iter){
+            for_each(iter->second.begin(),iter->second.end(),[&](const pair<WINDEX,double> & k){
+                    allquerywords.insert(k.first);
+                    });
+        }
+        for(unordered_set<WINDEX>::iterator itQW = allquerywords.begin(); itQW != allquerywords.end(); ++ itQW){
+            m_QTopKNeighbor.insert(make_pair(*itQW,unordered_map<WINDEX,double>()));
+            if(m_W.find(*itQW) == m_W.end()){
+                m_QTopKNeighbor[*itQW].insert(make_pair(*itQW,1.0));
+                continue;
+            }
+            VectorXd vecQW = m_W[*itQW];
+            unordered_map<WINDEX,VectorXd>::iterator it = m_W.begin();
+            double curr_max = 0;
+            for(; it != m_W.end(); ++ it){
+                double simi = vecQW.dot(it->second);
+                simi /= vecQW.norm() * it->second.norm();
+                if(simi > curr_max) curr_max = simi;
+                m_QTopKNeighbor[*itQW].insert(make_pair(it->first,simi));
+            }
+            //assert(curr_max == 1);
+            if(curr_max != 0){
+                for(auto itCWN = m_QTopKNeighbor[*itQW].begin(); itCWN != m_QTopKNeighbor[*itQW].end(); ++ itCWN){
+                    itCWN->second = itCWN->second / curr_max;
+                }
+            }
+        }
     }
-    for(unordered_set<WINDEX>::iterator itQW = allquerywords.begin(); itQW != allquerywords.end(); ++ itQW){
-        m_QTopKNeighbor.insert(make_pair(*itQW,unordered_map<WINDEX,double>()));
-        if(m_W.find(*itQW) == m_W.end()){
-            m_QTopKNeighbor[*itQW].insert(make_pair(*itQW,1.0));
-            continue;
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1){
+        e_QTopKNeighbor.clear();
+        unordered_set<WINDEX> allquerywords;
+        for(auto iter = e_QueryCorp.begin(); iter != e_QueryCorp.end(); ++ iter){
+            for_each(iter->second.begin(),iter->second.end(),[&](const pair<WINDEX,double> & k){
+                    allquerywords.insert(k.first);
+                    });
         }
-        VectorXd vecQW = m_W[*itQW]; 
-        unordered_map<WINDEX,VectorXd>::iterator it = m_W.begin();
-        double curr_max = 0;
-        for(; it != m_W.end(); ++ it){
-            double simi = vecQW.dot(it->second);
-            simi /= vecQW.norm() * it->second.norm();
-            if(simi > curr_max) curr_max = simi;
-            m_QTopKNeighbor[*itQW].insert(make_pair(it->first,simi));
-        }
-        //assert(curr_max == 1);
-        if(curr_max != 0){
-            for(auto itCWN = m_QTopKNeighbor[*itQW].begin(); itCWN != m_QTopKNeighbor[*itQW].end(); ++ itCWN){
-                itCWN->second = itCWN->second / curr_max;
+        for(unordered_set<WINDEX>::iterator itQW = allquerywords.begin(); itQW != allquerywords.end(); ++ itQW){
+            e_QTopKNeighbor.insert(make_pair(*itQW,unordered_map<WINDEX,double>()));
+            if(e_W.find(*itQW) == e_W.end()){
+                e_QTopKNeighbor[*itQW].insert(make_pair(*itQW,1.0));
+                continue;
+            }
+            VectorXd vecQW = e_W[*itQW];
+            unordered_map<WINDEX,VectorXd>::iterator it = e_W.begin();
+            double curr_max = 0;
+            for(; it != e_W.end(); ++ it){
+                double simi = vecQW.dot(it->second);
+                simi /= vecQW.norm() * it->second.norm();
+                if(simi > curr_max) curr_max = simi;
+                e_QTopKNeighbor[*itQW].insert(make_pair(it->first,simi));
+            }
+            //assert(curr_max == 1);
+            if(curr_max != 0){
+                for(auto itCWN = e_QTopKNeighbor[*itQW].begin(); itCWN != e_QTopKNeighbor[*itQW].end(); ++ itCWN){
+                    itCWN->second = itCWN->second / curr_max;
+                }
             }
         }
     }
@@ -415,12 +702,21 @@ void NN4IR::InitTopKNeiB(){
     fflush(stdout);
 }
 
-bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,const unordered_map<string,double> & scores,int evaluatenum ,int topk,_stIRResult &evalres){
-    if(m_relinfo[qindex].m_numofpos <= 0)   return false;
+bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,const unordered_map<string,double> & scores,int evaluatenum ,int topk,_stIRResult &evalres, int wordOrEntity = 0){
+    if(wordOrEntity == 0 && m_relinfo[qindex].m_numofpos <= 0)   return false;
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1 && e_relinfo[qindex].m_numofpos <= 0)   return false;
     assert(topk > 0 && evaluatenum > 0);
-    if(m_relinfo[qindex].m_numofpos <= 0){  
-        return false; 
+
+    if(wordOrEntity == 0 and m_relinfo[qindex].m_numofpos <= 0){
+        return false;
     }
+
+    if(wordOrEntity == 0 and e_relinfo[qindex].m_numofpos <= 0){
+        return false;
+    }
+
     evaluatenum = (int)scores.size() < evaluatenum ? (int)scores.size() : evaluatenum;
     topk  = (int)scores.size() < topk ? (int)scores.size() : topk;
     vector<pair<double,double>> resinfo(scores.size(),pair<double,double>(0,0)); //pair: label , score
@@ -428,6 +724,9 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
     for(auto iter = scores.begin() ; iter != scores.end(); ++iter){
         double clabel = 0;
         if(m_relinfo[qindex].m_docrel.find(iter->first) != m_relinfo[qindex].m_docrel.end())  clabel = m_relinfo[qindex].m_docrel[iter->first];
+
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        if(e_relinfo[qindex].m_docrel.find(iter->first) != e_relinfo[qindex].m_docrel.end())  clabel = e_relinfo[qindex].m_docrel[iter->first];
         //clabel = clabel >= relevance_level ? clabel : 0;
         resinfo[inum].first = clabel;
         resinfo[inum].second = iter->second;
@@ -442,7 +741,16 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
             evalres.m_map += (double) rel_so_far / (double) ( i + 1 );
         }
     }
-    evalres.m_map /= m_relinfo[qindex].m_numofpos;
+
+    if(wordOrEntity == 0) {
+      evalres.m_map /= m_relinfo[qindex].m_numofpos;
+    }
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1) {
+      evalres.m_map /= e_relinfo[qindex].m_numofpos;
+    }
+
     //p@k
     for(int j = 0 ; j < topk; ++j){
         if(resinfo[j].first >= relevance_level)
@@ -451,7 +759,10 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
     evalres.m_patk /= topk;
     //err@k
     double fdecay = 1.0;
-    double max_judge = pow(2,m_MAX_JUDGEMENT);
+
+    // CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    double max_judge = (wordOrEntity == 0)? pow(2,m_MAX_JUDGEMENT) : pow(2,e_MAX_JUDGEMENT);
+
     for(int j = 0 ; j < topk; ++j){
         double r = (pow(2,resinfo[j].first) - 1) / max_judge;
         evalres.m_erratk += r*fdecay /(j + 1);
@@ -472,10 +783,15 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
     if(idcg_score != 0)
         evalres.m_ndcg = dcg_score / idcg_score;
     */
+
     if(m_relinfo[qindex].m_idcg != 0)
         evalres.m_ndcg = dcg_score / m_relinfo[qindex].m_idcg;
+
+    if(e_relinfo[qindex].m_idcg != 0)
+        evalres.m_ndcg = dcg_score / e_relinfo[qindex].m_idcg;
     return true;
 }
+// This below doesnt need the change of word or entity
 void NN4IR::EvaluateFile(const std::string & sfilename){
     ifstream fin(sfilename.c_str());
     if(!fin){
@@ -518,21 +834,28 @@ void NN4IR::EvaluateFile(const std::string & sfilename){
     eval /= valid_topic_num;
     MSGPrint("Evaluating Result: valid-topic-num:%d, map:%.4f, P@k:%.4f, nDCG@k:%.4f, ERR@k:%.4f\n",valid_topic_num,eval.m_map,eval.m_patk,eval.m_ndcg,eval.m_erratk);
 }
-void NN4IR::RunningMultiThread(int nFold,int maxiter){
-    if(m_dataset.empty()){
-		throw MyError(" Error: no dataset found!");
-        return;
+void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
+    if((wordOrEntity == 0 && m_dataset.empty()) || (wordOrEntity == 1 && e_dataset.empty())){
+      throw MyError(" Error: no dataset found!");
+      return;
     }
     long a=0,b=0,c=0;
+
     vector<QINDEX> vecQIndex(m_dataset.size());
-    for(auto iter = m_dataset.begin(); iter != m_dataset.end(); ++ iter) vecQIndex[a++] = iter->first; 
+    if(wordOrEntity == 0) for(auto iter = m_dataset.begin(); iter != m_dataset.end(); ++ iter) vecQIndex[a++] = iter->first;
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1) {
+      vecQIndex.resize(e_dataset.size());
+      for(auto iter = e_dataset.begin(); iter != e_dataset.end(); ++ iter) vecQIndex[a++] = iter->first;
+    }
+
     vector<vector<QINDEX>> vecFolds;
     BruceKFold(vecQIndex,vecFolds);
     //const int nVecDim = m_W.begin()->second.size();
     const int nVecDim = 2; //term gating paramerter size
 
     const int vW1Size = 2; // layer size
-    vector<int> vW1SizeInfo = {30,5,1}; // layer parameters W1: 30*5, W2: 5*1 
+    vector<int> vW1SizeInfo = {30,5,1}; // layer parameters W1: 30*5, W2: 5*1
 
     vector<RMatrixXd> vW1_grad(vW1Size);
     vector<VectorXd>    vW3_grad(vW1Size);
@@ -547,8 +870,8 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter){
     vector<double> resFoldTest(nFold);
 
     for(a = 0 ; a < nFold; ++a){ // 迭代5轮，每次留第a个fold作为测试
-        double lr_w1 = m_lr_w1;
-        double lr_w2 = m_lr_w2;
+        double lr_w1 = (wordOrEntity == 0)? m_lr_w1 : e_lr_w1;
+        double lr_w2 = (wordOrEntity == 0)? m_lr_w2 : e_lr_w2;
         vector<RMatrixXd> m_vW1(vW1Size);
         vector<VectorXd> m_vW3(vW1Size);
         for(b = 0 ; b < vW1Size; ++ b)  {
@@ -567,10 +890,22 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter){
             if(b == a)  continue;
             for(c = 0 ; c < vecFolds[b].size(); ++c){
                 QINDEX qIndex = vecFolds[b][c];
-                if(m_relinfo[qIndex].m_numofpos <= 0)   continue;
-                if( m_QInstance.find(qIndex) == m_QInstance.end())  continue;
-                for(auto iter = m_QInstance[qIndex].begin(); iter != m_QInstance[qIndex].end(); ++ iter){
-                    allTrainInstance.push_back(make_pair(qIndex,make_pair(iter->first,iter->second)));
+                if (wordOrEntity == 0) {
+                  /* code */
+                  if(m_relinfo[qIndex].m_numofpos <= 0)   continue;
+                  if( m_QInstance.find(qIndex) == m_QInstance.end())  continue;
+                  for(auto iter = m_QInstance[qIndex].begin(); iter != m_QInstance[qIndex].end(); ++ iter){
+                      allTrainInstance.push_back(make_pair(qIndex,make_pair(iter->first,iter->second)));
+                  }
+                }
+                // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+                if (wordOrEntity == 1) {
+                  /* code */
+                  if(e_relinfo[qIndex].m_numofpos <= 0)   continue;
+                  if( e_QInstance.find(qIndex) == e_QInstance.end())  continue;
+                  for(auto iter = e_QInstance[qIndex].begin(); iter != e_QInstance[qIndex].end(); ++ iter){
+                      allTrainInstance.push_back(make_pair(qIndex,make_pair(iter->first,iter->second)));
+                  }
                 }
             }
         }
@@ -578,12 +913,19 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter){
         MSGPrint(" start to train %d instance. \n", allTrainInstance.size());
         fflush(stdout);
         long total_case_number = allTrainInstance.size();
-        long  max_iterloop= maxiter * total_case_number / m_mini_batch;
+
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        long  max_iterloop= (wordOrEntity == 0)? (maxiter * total_case_number / m_mini_batch) : (maxiter * total_case_number / e_mini_batch);
+
         long iterloop = 0;
         bool bfinished = false;
         while(!bfinished){
             double looploss = 0.0;
             int batch_size = total_case_number / m_mini_batch ; //注意，这里丢弃了部分的case，使得下面的omp 可以编译通过
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity == 1) {
+              batch_size = total_case_number / e_mini_batch ;
+            }
             for(b = 0 ; b < batch_size; ++ b){
                 for(c = 0 ; c < vW1Size; ++ c){
                     vW1_grad[c].setZero();
@@ -591,51 +933,116 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter){
                 }
                 vW2_grad.setZero();
                 double batchloss = 0.0;
-                #pragma omp parallel for
-                for(c = 0 ; c < m_mini_batch; ++c){ //每 m_mini_batch 个instance  更新参数
-                    int curr_instance_index = b * m_mini_batch + c;
-                    pair<QINDEX,pair<string,string>> & curr_instance = allTrainInstance[curr_instance_index];
-                    vector<RMatrixXd>    vW1_pgd(vW1Size),vW1_ngd(vW1Size);
-                    vector<VectorXd>     vW3_pgd(vW1Size),vW3_ngd(vW1Size);
-                    for(long d = 0 ; d < vW1Size; ++ d){
-                        vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
-                        vW1_ngd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
-                        vW3_pgd[d].resize(vW3_grad[d].size());
-                        vW3_ngd[d].resize(vW3_grad[d].size());
-                        vW3_pgd[d].setZero();
-                        vW3_ngd[d].setZero();
-                    }
-                    VectorXd vW2_pgd = VectorXd::Zero(nVecDim),vW2_ngd = VectorXd::Zero(nVecDim); 
-                    double score1 = 0, score2 = 0;
-                    score1 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.first,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,true); //positive score
-                    score2 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.second,m_vW1,m_vW2,m_vW3,vW1_ngd,vW2_ngd,vW3_ngd,true); //negative score
-                    double currloss = 0.1 - score1 + score2;
-                    if(currloss > 0){ //calculate gradient , update parameters
-                        for(long d = 0 ; d < vW1Size; ++ d){
-                            vW1_grad[d] += lr_w1 * (vW1_pgd[d] - vW1_ngd[d]);
-                            vW3_grad[d] += lr_w1 * (vW3_pgd[d] - vW3_ngd[d]);
-                        }
-                        vW2_grad += lr_w2 * (vW2_pgd - vW2_ngd);
-                        looploss += currloss;
-                        batchloss += currloss;
-                    }
+
+                if(wordOrEntity == 0) {
+                  #pragma omp parallel for
+                  for(c = 0 ; c < m_mini_batch; ++c){ //每 m_mini_batch 个instance  更新参数
+                      int curr_instance_index = b * m_mini_batch + c;
+                      pair<QINDEX,pair<string,string>> & curr_instance = allTrainInstance[curr_instance_index];
+                      vector<RMatrixXd>    vW1_pgd(vW1Size),vW1_ngd(vW1Size);
+                      vector<VectorXd>     vW3_pgd(vW1Size),vW3_ngd(vW1Size);
+                      for(long d = 0 ; d < vW1Size; ++ d){
+                          vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
+                          vW1_ngd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
+                          vW3_pgd[d].resize(vW3_grad[d].size());
+                          vW3_ngd[d].resize(vW3_grad[d].size());
+                          vW3_pgd[d].setZero();
+                          vW3_ngd[d].setZero();
+                      }
+                      VectorXd vW2_pgd = VectorXd::Zero(nVecDim),vW2_ngd = VectorXd::Zero(nVecDim);
+                      double score1 = 0, score2 = 0;
+                      score1 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.first,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,true); //positive score
+                      score2 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.second,m_vW1,m_vW2,m_vW3,vW1_ngd,vW2_ngd,vW3_ngd,true); //negative score
+                      double currloss = 0.1 - score1 + score2;
+                      if(currloss > 0){ //calculate gradient , update parameters
+                          for(long d = 0 ; d < vW1Size; ++ d){
+                              vW1_grad[d] += lr_w1 * (vW1_pgd[d] - vW1_ngd[d]);
+                              vW3_grad[d] += lr_w1 * (vW3_pgd[d] - vW3_ngd[d]);
+                          }
+                          vW2_grad += lr_w2 * (vW2_pgd - vW2_ngd);
+                          looploss += currloss;
+                          batchloss += currloss;
+                      }
+                  }
                 }
+
+                // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+                if(wordOrEntity == 1) {
+                  #pragma omp parallel for
+                  for(c = 0 ; c < e_mini_batch; ++c){ //每 m_mini_batch 个instance  更新参数
+                      int curr_instance_index = b * e_mini_batch + c;
+                      pair<QINDEX,pair<string,string>> & curr_instance = allTrainInstance[curr_instance_index];
+                      vector<RMatrixXd>    vW1_pgd(vW1Size),vW1_ngd(vW1Size);
+                      vector<VectorXd>     vW3_pgd(vW1Size),vW3_ngd(vW1Size);
+                      for(long d = 0 ; d < vW1Size; ++ d){
+                          vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
+                          vW1_ngd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
+                          vW3_pgd[d].resize(vW3_grad[d].size());
+                          vW3_ngd[d].resize(vW3_grad[d].size());
+                          vW3_pgd[d].setZero();
+                          vW3_ngd[d].setZero();
+                      }
+                      VectorXd vW2_pgd = VectorXd::Zero(nVecDim),vW2_ngd = VectorXd::Zero(nVecDim);
+                      double score1 = 0, score2 = 0;
+                      score1 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.first,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,true); //positive score
+                      score2 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.second,m_vW1,m_vW2,m_vW3,vW1_ngd,vW2_ngd,vW3_ngd,true); //negative score
+                      double currloss = 0.1 - score1 + score2;
+                      if(currloss > 0){ //calculate gradient , update parameters
+                          for(long d = 0 ; d < vW1Size; ++ d){
+                              vW1_grad[d] += lr_w1 * (vW1_pgd[d] - vW1_ngd[d]);
+                              vW3_grad[d] += lr_w1 * (vW3_pgd[d] - vW3_ngd[d]);
+                          }
+                          vW2_grad += lr_w2 * (vW2_pgd - vW2_ngd);
+                          looploss += currloss;
+                          batchloss += currloss;
+                      }
+                  }
+                }
+
                 for(c = 0 ; c < vW1Size; ++ c){
-                    m_vW1[c] += vW1_grad[c] / m_mini_batch;
-                    m_vW3[c] += vW3_grad[c] / m_mini_batch;
+                    if(wordOrEntity == 0){
+                      m_vW1[c] += vW1_grad[c] / m_mini_batch;
+                      m_vW3[c] += vW3_grad[c] / m_mini_batch;
+                    }
+
+                    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+                    if(wordOrEntity == 1){
+                      m_vW1[c] += vW1_grad[c] / e_mini_batch;
+                      m_vW3[c] += vW3_grad[c] / e_mini_batch;
+                    }
                 }
-                m_vW2 += vW2_grad / m_mini_batch;
-                ++iterloop;
-                // learining rate decay
-                if( iterloop > 0 && (iterloop % m_lr_decay_interval == 0)){
-                    lr_w1 = m_lr_w1 * (1.0 - iterloop / (1.0 + max_iterloop));
-                    if(lr_w1 < m_lr_w1 * 0.0001) lr_w1 = m_lr_w1 * 0.001;
-                    lr_w2 = m_lr_w2 * (1.0 - iterloop / (1.0 + max_iterloop));
-                    if(lr_w2 < m_lr_w2 * 0.0001) lr_w2 = m_lr_w2 * 0.001;
+
+                if(wordOrEntity == 0){
+                  m_vW2 += vW2_grad / m_mini_batch;
+                  ++iterloop;
+                  // learining rate decay
+                  if( iterloop > 0 && (iterloop % m_lr_decay_interval == 0)){
+                      lr_w1 = m_lr_w1 * (1.0 - iterloop / (1.0 + max_iterloop));
+                      if(lr_w1 < m_lr_w1 * 0.0001) lr_w1 = m_lr_w1 * 0.001;
+                      lr_w2 = m_lr_w2 * (1.0 - iterloop / (1.0 + max_iterloop));
+                      if(lr_w2 < m_lr_w2 * 0.0001) lr_w2 = m_lr_w2 * 0.001;
+                  }
                 }
-                // show train and test performance 
-                if(iterloop > 0 && iterloop % m_show_interval == 0){
-                    MSGPrint("iterator:%dk|%dk,lr(w1):%.6f, Loss:%.6f\n", int(iterloop/1000), int(max_iterloop/1000), lr_w1, batchloss/m_mini_batch );
+                // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+                if(wordOrEntity == 1){
+                  m_vW2 += vW2_grad / e_mini_batch;
+                  ++iterloop;
+                  // learining rate decay
+                  if( iterloop > 0 && (iterloop % e_lr_decay_interval == 0)){
+                      lr_w1 = e_lr_w1 * (1.0 - iterloop / (1.0 + max_iterloop));
+                      if(lr_w1 < e_lr_w1 * 0.0001) lr_w1 = e_lr_w1 * 0.001;
+                      lr_w2 = e_lr_w2 * (1.0 - iterloop / (1.0 + max_iterloop));
+                      if(lr_w2 < e_lr_w2 * 0.0001) lr_w2 = e_lr_w2 * 0.001;
+                  }
+                }
+                // show train and test performance
+                if(iterloop > 0 && ((wordOrEntity == 0 && (iterloop % m_show_interval == 0)) || (wordOrEntity == 1 && (iterloop % e_show_interval == 0))) ){
+                    if(wordOrEntity == 0){
+                      MSGPrint("iterator:%dk|%dk,lr(w1):%.6f, Loss:%.6f\n", int(iterloop/1000), int(max_iterloop/1000), lr_w1, batchloss/m_mini_batch );
+                    }
+                    if(wordOrEntity == 1){
+                      MSGPrint("iterator:%dk|%dk,lr(w1):%.6f, Loss:%.6f\n", int(iterloop/1000), int(max_iterloop/1000), lr_w1, batchloss/e_mini_batch );
+                    }
                     //training performance
                     /*
                     int iValidTrainQuery = 0;
@@ -675,25 +1082,47 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter){
                     for(b = 0 ; b < vecFolds[a].size(); ++ b){
                         QINDEX qIndex = vecFolds[a][b];
                         unordered_map<string,double> currscore;
-                        assert(m_dataset.find(qIndex) != m_dataset.end());
-                        for(auto iter = m_dataset[qIndex].begin(); iter != m_dataset[qIndex].end(); ++ iter){
-                            vector<RMatrixXd> vW1_pgd(vW1Size);
-                            vector<VectorXd> vW3_pgd(vW1Size);
-                            for(long d = 0 ; d < vW1Size; ++ d){
-                                vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
-                                vW3_pgd[d].resize(vW3_grad[d].size());
-                                vW3_pgd[d].setZero();
-                            }
-                            VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
-                            double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,false);
-                            currscore.insert(make_pair(*iter,score));
+
+                        if(wordOrEntity == 0){
+                          assert(m_dataset.find(qIndex) != m_dataset.end());
+                          for(auto iter = m_dataset[qIndex].begin(); iter != m_dataset[qIndex].end(); ++ iter){
+                              vector<RMatrixXd> vW1_pgd(vW1Size);
+                              vector<VectorXd> vW3_pgd(vW1Size);
+                              for(long d = 0 ; d < vW1Size; ++ d){
+                                  vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
+                                  vW3_pgd[d].resize(vW3_grad[d].size());
+                                  vW3_pgd[d].setZero();
+                              }
+                              VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
+                              double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,false);
+                              currscore.insert(make_pair(*iter,score));
+                          }
                         }
+                        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+                        if(wordOrEntity == 1) {
+                          assert(e_dataset.find(qIndex) != e_dataset.end());
+                          for(auto iter = e_dataset[qIndex].begin(); iter != e_dataset[qIndex].end(); ++ iter){
+                              vector<RMatrixXd> vW1_pgd(vW1Size);
+                              vector<VectorXd> vW3_pgd(vW1Size);
+                              for(long d = 0 ; d < vW1Size; ++ d){
+                                  vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
+                                  vW3_pgd[d].resize(vW3_grad[d].size());
+                                  vW3_pgd[d].setZero();
+                              }
+                              VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
+                              double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,false);
+                              currscore.insert(make_pair(*iter,score));
+                          }
+                        }
+
                         _stIRResult tmpeval;
                         bool bvalidq = Simi_evaluate(1,qIndex,currscore,1000,20,std::ref(tmpeval));
                         currTestRes += tmpeval;
-                        if(!m_CalAllQ && bvalidq){
+                        if(wordOrEntity == 0 && !m_CalAllQ && bvalidq){
                             ++iValidTestQuery;
-                        }else{
+                        } else if(wordOrEntity == 1 && !e_CalAllQ && bvalidq) {
+                            ++iValidTestQuery;
+                        } else {
                             ++iValidTestQuery;
                         }
                     }
@@ -723,23 +1152,47 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter){
             if(m_RankInfo.find(qIndex) == m_RankInfo.end()) m_RankInfo.insert(make_pair(qIndex,multimap<double,string,std::greater<double>>()));
             omp_unset_lock(&lock);
             unordered_map<string,double> currscore;
-            assert(m_dataset.find(qIndex) != m_dataset.end());
-            for(auto iter = m_dataset[qIndex].begin(); iter != m_dataset[qIndex].end(); ++ iter){
-                vector<RMatrixXd> vW1_pgd(vW1Size);
-                vector<VectorXd> vW3_pgd(vW1Size);
-                for(long d = 0 ; d < vW1Size; ++ d){  
-                    vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
-                    vW3_pgd[d].resize(vW3_grad[d].size());
-                    vW3_pgd[d].setZero();
-                }
-                VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
-                double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1_best,m_vW2_best,m_vW3_best,vW1_pgd,vW2_pgd,vW3_pgd,false);
-                omp_set_lock(&lock);
-                m_RankInfo[qIndex].insert(make_pair(score,*iter));
-                omp_unset_lock(&lock);
-                currscore.insert(make_pair(*iter,score));
-                assert(m_dataset.find(qIndex) != m_dataset.end());
+            if(wordOrEntity == 0) {
+              assert(m_dataset.find(qIndex) != m_dataset.end());
+              for(auto iter = m_dataset[qIndex].begin(); iter != m_dataset[qIndex].end(); ++ iter){
+                  vector<RMatrixXd> vW1_pgd(vW1Size);
+                  vector<VectorXd> vW3_pgd(vW1Size);
+                  for(long d = 0 ; d < vW1Size; ++ d){
+                      vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
+                      vW3_pgd[d].resize(vW3_grad[d].size());
+                      vW3_pgd[d].setZero();
+                  }
+                  VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
+                  double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1_best,m_vW2_best,m_vW3_best,vW1_pgd,vW2_pgd,vW3_pgd,false);
+                  omp_set_lock(&lock);
+                  m_RankInfo[qIndex].insert(make_pair(score,*iter));
+                  omp_unset_lock(&lock);
+                  currscore.insert(make_pair(*iter,score));
+                  assert(m_dataset.find(qIndex) != m_dataset.end());
+              }
             }
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity == 1){
+              assert(e_dataset.find(qIndex) != e_dataset.end());
+              for(auto iter = e_dataset[qIndex].begin(); iter != e_dataset[qIndex].end(); ++ iter){
+                  vector<RMatrixXd> vW1_pgd(vW1Size);
+                  vector<VectorXd> vW3_pgd(vW1Size);
+                  for(long d = 0 ; d < vW1Size; ++ d){
+                      vW1_pgd[d] = RMatrixXd::Zero(vW1_grad[d].rows(),vW1_grad[d].cols());
+                      vW3_pgd[d].resize(vW3_grad[d].size());
+                      vW3_pgd[d].setZero();
+                  }
+                  VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
+                  double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1_best,m_vW2_best,m_vW3_best,vW1_pgd,vW2_pgd,vW3_pgd,false);
+                  omp_set_lock(&lock);
+                  m_RankInfo[qIndex].insert(make_pair(score,*iter));
+                  omp_unset_lock(&lock);
+                  currscore.insert(make_pair(*iter,score));
+                  assert(e_dataset.find(qIndex) != e_dataset.end());
+              }
+            }
+
+
             _stIRResult tmpeval;
             bool bvalidq = Simi_evaluate(1,qIndex,currscore,1000,20,std::ref(tmpeval));
             cTestRes += tmpeval;
@@ -756,7 +1209,7 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter){
         fflush(stdout);
 
         result += cTestRes;
-        
+
         //record resul info just for easy fitting excel
         resFoldTest[a] = cTestRes.m_map;
     }
@@ -768,16 +1221,24 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter){
     return ;
 }
 
-double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const vector<RMatrixXd> & vW1,const VectorXd & vW2,const vector<VectorXd> & vW3,vector<RMatrixXd> & vW1_gd,VectorXd & vW2_gd,vector<VectorXd> & vW3_gd,bool bTrain){
+double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const vector<RMatrixXd> & vW1,const VectorXd & vW2,const vector<VectorXd> & vW3,vector<RMatrixXd> & vW1_gd,VectorXd & vW2_gd,vector<VectorXd> & vW3_gd,bool bTrain, int wordOrEntity){
     assert(vW1.size() == vW1_gd.size() && vW2.size() == vW2_gd.size() && vW3.size() == vW3_gd.size() && vW1.size() == vW3.size());
     long a,b,c,d,e;
     double eps = 1e-4;
     double score = 0;
-    const int nQSize = m_seqQueryCorp[qindex].size();
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    const int nQSize = (wordOrEntity == 0)? m_seqQueryCorp[qindex].size() : e_seqQueryCorp[qIndex].size();
     const int nVecDim = vW2.size();
     const int vW1Size = vW1.size();
     assert(vW1Size > 0 );
-    const vector<WINDEX> & currsequence = m_DocCorp[currdoc].m_docword;
+    const vector<WINDEX> & currsequence;
+    if(wordOrEntity == 0){
+      currsequence = m_DocCorp[currdoc].m_docword;
+    }
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1){
+      currsequence = e_DocCorp[currdoc].m_docword;
+    }
     const int iDocLen = currsequence.size();
     if(iDocLen == 0 || nQSize == 0){
       return std::numeric_limits<double>::lowest();
@@ -785,13 +1246,18 @@ double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const
     RMatrixXd mm = RMatrixXd::Constant(nQSize,vW1[0].rows(),0);
     const int iHalfSize = vW1[0].rows();
     for(a = 0 ; a < nQSize; ++ a){
-        const WINDEX & cqword = m_seqQueryCorp[qindex][a];
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        const WINDEX & cqword = (wordOrEntity == 0)? m_seqQueryCorp[qindex][a] : e_seqQueryCorp[qindex][a];
         for(b = 0 ; b < iDocLen; ++ b){
             double simi1 = 0.0;
             if(cqword == currsequence[b]){
                 simi1 = 1.0;
-            }else if(m_QTopKNeighbor.find(cqword) != m_QTopKNeighbor.end() && m_QTopKNeighbor[cqword].find(currsequence[b]) != m_QTopKNeighbor[cqword].end()){
+            }else if(wordOrEntity == 0 && m_QTopKNeighbor.find(cqword) != m_QTopKNeighbor.end() && m_QTopKNeighbor[cqword].find(currsequence[b]) != m_QTopKNeighbor[cqword].end()){
                 simi1 = m_QTopKNeighbor[cqword][currsequence[b]];
+
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            }else if(wordOrEntity == 1 && e_QTopKNeighbor.find(cqword) != e_QTopKNeighbor.end() && e_QTopKNeighbor[cqword].find(currsequence[b]) != e_QTopKNeighbor[cqword].end()){
+                simi1 = e_QTopKNeighbor[cqword][currsequence[b]];
             }
             int iw1 = (simi1 + 1.0 ) / 2.0 * (iHalfSize - 1);
             assert( iw1 >= 0 && iw1 < iHalfSize);
@@ -802,13 +1268,16 @@ double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const
     VectorXd vQWeight = VectorXd::Zero(nQSize); //zi
     VectorXd vW2_gd_tmp = VectorXd::Zero(nVecDim);
     for( a = 0 ; a < nQSize; ++ a){
-        WINDEX cqword = m_seqQueryCorp[qindex][a];
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        WINDEX cqword = (wordOrEntity == 0)? m_seqQueryCorp[qindex][a] : e_seqQueryCorp[qindex][a];
         double cqw = 2.0;
-        cqw = exp(vW2(0) * (m_vocab[cqword].m_idf)); 
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        cqw = (wordOrEntity == 0)? exp(vW2(0) * (m_vocab[cqword].m_idf)) : exp(vW2(0) * (e_vocab[cqword].m_idf));
         if(bTrain){
-            vW2_gd_tmp(0) += cqw * (m_vocab[cqword].m_idf);
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            vW2_gd_tmp(0) += (wordOrEntity == 0)? cqw * (m_vocab[cqword].m_idf) : cqw * (e_vocab[cqword].m_idf);
         }
-        vQWeight(a) = cqw; 
+        vQWeight(a) = cqw;
         weight_sum += vQWeight(a);
     }
 
@@ -820,17 +1289,19 @@ double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const
     vector<VectorXd> sigma(vW1Size);
     vHi[0].resize(vW1[0].rows());
     for(a = 1 ; a < vW1Size + 1; ++ a){
-        vHi[a].resize(vW1[a-1].cols()); 
+        vHi[a].resize(vW1[a-1].cols());
         sigma[a-1].resize(vHi[a].size());
     }
     for(a = 0; a < mm.rows(); ++ a){
-        const WINDEX & cqword = m_seqQueryCorp[qindex][a];
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        const WINDEX & cqword = (wordOrEntity == 0)? m_seqQueryCorp[qindex][a] : e_seqQueryCorp[qindex][a];
+
         vHi[0].setZero();
         for(int b = 0 ; b < vHi[0].size(); ++ b){
             vHi[0](b) = log10(mm(a,b) + 1);
         }
         //feed forward
-        for(b = 1 ; b < vW1Size + 1; ++ b){ 
+        for(b = 1 ; b < vW1Size + 1; ++ b){
             vHi[b].setZero();
             vHi[b] = vHi[b-1] * vW1[b-1] + vW3[b-1];
             vHi[b] = m_actfunc.forward(vHi[b]);
@@ -840,7 +1311,7 @@ double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const
         if(bTrain){
             for(b = vW1Size; b > 0; --b){
                 sigma[b-1].setZero();
-                if(b == vW1Size){    
+                if(b == vW1Size){
                     VectorXd f_gd = m_actfunc.backward(vHi[b]);
                     sigma[b-1] = vQWeight(a) * f_gd;
                 }else{
@@ -850,7 +1321,14 @@ double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const
                 vW1_gd[b-1] += vHi[b-1].transpose() * sigma[b-1];
                 vW3_gd[b-1] += sigma[b-1];
             }
-            vW2_gd(0) += vHi[vW1Size](0) * vQWeight(a) * ((m_vocab[cqword].m_idf) - vW2_gd_tmp(0));
+            if(wordOrEntity == 0) {
+              vW2_gd(0) += vHi[vW1Size](0) * vQWeight(a) * ((m_vocab[cqword].m_idf) - vW2_gd_tmp(0));
+            }
+
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity == 1) {
+              vW2_gd(0) += vHi[vW1Size](0) * vQWeight(a) * ((e_vocab[cqword].m_idf) - vW2_gd_tmp(0));
+            }
         }
     }
     return score;
