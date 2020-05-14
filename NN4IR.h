@@ -116,7 +116,9 @@ namespace nsnn4ir{
             double m_N = 528155;
             double e_N = 528155; // e is for entity
             double m_DocAvgLen = 247.91;
+            double e_DocAvgLen = 247.91; // e is for entity
             double m_CollecLen = 252310006;
+            double e_CollecLen = 252310006; // e is for entity
             double m_lr_w1 = 0.02;
             double e_lr_w1 = 0.02;  // e is for entity
             double m_lr_w2 = 0.002;

@@ -87,7 +87,7 @@ void NN4IR::InitWordVec(const std::string & sfilename,bool binary, int wordOrEnt
                     mpOutVocab.insert(make_pair(text,currvd));
                     continue;
                 }
-                e_W.insert(make_pair(m_words[text],currvd)); //Global Variables
+                e_W.insert(make_pair(e_words[text],currvd)); //Global Variables
             }
 
         }
@@ -111,7 +111,7 @@ void NN4IR::InitWordVec(const std::string & sfilename,bool binary, int wordOrEnt
             if(wordOrEntity == 1){
                 if(e_words.find(stext) == e_words.end())    continue;
                 if(e_W.find(e_words[stext]) == e_W.end()){
-                    e_W.insert(make_pair(m_words[stext],itF->second));
+                    e_W.insert(make_pair(e_words[stext],itF->second));
                 }
             }
         }
@@ -165,7 +165,7 @@ void NN4IR::InitWordVec(const std::string & sfilename,bool binary, int wordOrEnt
            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
            if(wordOrEntity == 1){
                 if(e_words.find(stext) == e_words.end())    continue; // Global variables
-                if(e_W.find(m_words[stext]) == e_W.end()){
+                if(e_W.find(e_words[stext]) == e_W.end()){
                     e_W.insert(make_pair(e_words[stext],itF->second));
                 }
            }
@@ -202,8 +202,8 @@ void NN4IR::InitDocCorp(const std::string & sDocFile, int wordOrEntity = 0){
         if(vecline.empty()) continue;
         string did = vecline[0];
         int cdlen = atoi(vecline[1].c_str());
-        currdocinfo.m_doclen = cdlen;
-        currdocinfo.m_docword.reserve(cdlen);
+        currdocinfo.m_doclen = cdlen; // LOCAL VARIABLES WITH ATTRIBUTE m_ types
+        currdocinfo.m_docword.reserve(cdlen);// LOCAL VARIABLES WITH ATTRIBUTE m_ types
         int countlen = 0;
         for(size_t j = 2 ; j < vecline.size(); ++j){
             //std::transform(vecline[j].begin(),vecline[j].end(),vecline[j].begin(),::tolower);
@@ -223,7 +223,7 @@ void NN4IR::InitDocCorp(const std::string & sDocFile, int wordOrEntity = 0){
             if(wordOrEntity == 1){
                 if(e_words.find(word) == e_words.end())   continue; //If words in word embedding then it places its index?
                 for(int i = 0 ; i < count; ++i)
-                currdocinfo.m_docword.emplace_back(m_words[word]); // append to the end of the container
+                currdocinfo.m_docword.emplace_back(e_words[word]); // append to the end of the container
                 //countlen += count;
             }
         }
@@ -241,7 +241,13 @@ void NN4IR::InitDocCorp(const std::string & sDocFile, int wordOrEntity = 0){
         ++inum ;
 
     }
+    if(wordOrEntity == 0)
     MSGPrint("Init document corpus finished, doc count:%d ...\n", m_DocCorp.size());
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1)
+    MSGPrint("Init document corpus finished, doc count:%d ...\n", e_DocCorp.size());
+
     fflush(stdout);
 }
 void NN4IR::InitQueryCorp(const std::string & sQueryFile, int wordOrEntity = 0){
@@ -251,7 +257,7 @@ void NN4IR::InitQueryCorp(const std::string & sQueryFile, int wordOrEntity = 0){
 
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
     if(wordOrEntity == 1){
-        assert(!1_words.empty() && !e_vocab.empty());
+        assert(!e_words.empty() && !e_vocab.empty());
     }
 
     ifstream fin(sQueryFile.c_str());
@@ -309,8 +315,8 @@ void NN4IR::InitQueryCorp(const std::string & sQueryFile, int wordOrEntity = 0){
     }
 
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
-    if(wordOrEntity == 0){
-        MSGPrint("Init query corpus finished, query count:%d ...\n", m_QueryCorp.size());
+    if(wordOrEntity == 1){
+        MSGPrint("Init query corpus finished, query count:%d ...\n", e_QueryCorp.size());
     }
 
     fflush(stdout);
@@ -358,8 +364,10 @@ void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,in
     if(wordOrEntity == 0){
         for(auto iter = m_relinfo.begin(); iter != m_relinfo.end(); ++ iter)    all_pos.push_back(iter->second.m_numofpos);
     }
+
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
     if(wordOrEntity == 1){
-        for(auto iter = m_relinfo.begin(); iter != m_relinfo.end(); ++ iter)    all_pos.push_back(iter->second.m_numofpos);
+        for(auto iter = e_relinfo.begin(); iter != e_relinfo.end(); ++ iter)    all_pos.push_back(iter->second.m_numofpos);
     }
     std::sort(all_pos.begin(),all_pos.end(),[](const int a,const int b) -> bool{ return a < b; });
     int avg_pos_34 = all_pos[all_pos.size() * 3 / 4];
@@ -368,7 +376,7 @@ void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,in
     random_device rdp,rdn;
     mt19937 ren(rdn());
     long totalinstance = 0;
-    if(wordOrEntity == 1 && (m_DocCorp.size() <= 0 || m_QueryCorp.size() <= 0) ){
+    if(wordOrEntity == 0 && (m_DocCorp.size() <= 0 || m_QueryCorp.size() <= 0) ){
 		  throw MyError(" Error: query corp or doc corp should be initialized for words!");
     }
 
@@ -589,7 +597,7 @@ void NN4IR::LoadTermDFCF(const std::string &sfilename, int wordOrEntity = 0){
         std::transform(word.begin(),word.end(),word.begin(),::tolower);
 
         assert(!word.empty());
-        if(wordOrEntity == 1 && m_words.find(word) == m_words.end()){
+        if(wordOrEntity == 0 && m_words.find(word) == m_words.end()){
             m_words[word] = m_VocabSize;
             double curridf = log((double)(m_N + 1) / currdf);
             assert(curridf > 0);
@@ -723,10 +731,10 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
     int inum = 0;
     for(auto iter = scores.begin() ; iter != scores.end(); ++iter){
         double clabel = 0;
-        if(m_relinfo[qindex].m_docrel.find(iter->first) != m_relinfo[qindex].m_docrel.end())  clabel = m_relinfo[qindex].m_docrel[iter->first];
+        if( wordOrEntity == 0 && (m_relinfo[qindex].m_docrel.find(iter->first) != m_relinfo[qindex].m_docrel.end()))  clabel = m_relinfo[qindex].m_docrel[iter->first];
 
         // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
-        if(e_relinfo[qindex].m_docrel.find(iter->first) != e_relinfo[qindex].m_docrel.end())  clabel = e_relinfo[qindex].m_docrel[iter->first];
+        if(wordOrEntity == 1 &&(e_relinfo[qindex].m_docrel.find(iter->first) != e_relinfo[qindex].m_docrel.end()))  clabel = e_relinfo[qindex].m_docrel[iter->first];
         //clabel = clabel >= relevance_level ? clabel : 0;
         resinfo[inum].first = clabel;
         resinfo[inum].second = iter->second;
@@ -784,10 +792,10 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
         evalres.m_ndcg = dcg_score / idcg_score;
     */
 
-    if(m_relinfo[qindex].m_idcg != 0)
+    if(wordOrEntity == 0 && m_relinfo[qindex].m_idcg != 0)
         evalres.m_ndcg = dcg_score / m_relinfo[qindex].m_idcg;
 
-    if(e_relinfo[qindex].m_idcg != 0)
+    if(wordOrEntity == 1 && e_relinfo[qindex].m_idcg != 0)
         evalres.m_ndcg = dcg_score / e_relinfo[qindex].m_idcg;
     return true;
 }
@@ -840,13 +848,16 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
       return;
     }
     long a=0,b=0,c=0;
-
-    vector<QINDEX> vecQIndex(m_dataset.size());
-    if(wordOrEntity == 0) for(auto iter = m_dataset.begin(); iter != m_dataset.end(); ++ iter) vecQIndex[a++] = iter->first;
+    if(wordOrEntity == 0){
+        vector<QINDEX> vecQIndex(m_dataset.size());
+        for(auto iter = m_dataset.begin(); iter != m_dataset.end(); ++ iter) 
+            vecQIndex[a++] = iter->first;
+    }
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
     if(wordOrEntity == 1) {
-      vecQIndex.resize(e_dataset.size());
-      for(auto iter = e_dataset.begin(); iter != e_dataset.end(); ++ iter) vecQIndex[a++] = iter->first;
+        vector<QINDEX> vecQIndex(e_dataset.size());
+        for(auto iter = e_dataset.begin(); iter != e_dataset.end(); ++ iter) 
+            vecQIndex[a++] = iter->first;
     }
 
     vector<vector<QINDEX>> vecFolds;
@@ -890,6 +901,7 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
             if(b == a)  continue;
             for(c = 0 ; c < vecFolds[b].size(); ++c){
                 QINDEX qIndex = vecFolds[b][c];
+
                 if (wordOrEntity == 0) {
                   /* code */
                   if(m_relinfo[qIndex].m_numofpos <= 0)   continue;
@@ -1334,15 +1346,28 @@ double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const
     return score;
 }
 
-void NN4IR::GetRanklist(const char* filename){
+void NN4IR::GetRanklist(const char* filename, int wordOrEntity = 0){
     ofstream fout(filename, ios::out);
-    for(auto itQ = m_RankInfo.begin(); itQ != m_RankInfo.end(); ++ itQ){
-        int irank = 0;
-        for(auto itRanklist = itQ->second.begin(); itRanklist != itQ->second.end(); ++ itRanklist){
-            fout<<itQ->first<<"\tQ0\t"<<itRanklist->second<<"\t"<<irank<<"\t"<<itRanklist->first<<"\tNN4IR-LCH-IDF\n";
-            ++irank;
+    if (wordOrEntity == 0){
+        for(auto itQ = m_RankInfo.begin(); itQ != m_RankInfo.end(); ++ itQ){
+            int irank = 0;
+            for(auto itRanklist = itQ->second.begin(); itRanklist != itQ->second.end(); ++ itRanklist){
+                fout<<itQ->first<<"\tQ0\t"<<itRanklist->second<<"\t"<<irank<<"\t"<<itRanklist->first<<"\tNN4IR-LCH-IDF\n";
+                ++irank;
+            }
         }
     }
+
+    if (wordOrEntity == 1){
+        for(auto itQ = e_RankInfo.begin(); itQ != e_RankInfo.end(); ++ itQ){
+            int irank = 0;
+            for(auto itRanklist = itQ->second.begin(); itRanklist != itQ->second.end(); ++ itRanklist){
+                fout<<itQ->first<<"\tQ0\t"<<itRanklist->second<<"\t"<<irank<<"\t"<<itRanklist->first<<"\tNN4IR-LCH-IDF\n";
+                ++irank;
+            }
+        }
+    }
+
     fout.close();
     fout.clear();
 }
