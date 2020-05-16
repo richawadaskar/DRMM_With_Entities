@@ -149,7 +149,9 @@ namespace nsnn4ir{
             unordered_map<WINDEX,unordered_map<WINDEX,double>> e_QTopKNeighbor; // e is for entity
 
             unordered_map<QINDEX,multimap<double,string,std::greater<double>>> m_RankInfo; // save final ranklist
+            unordered_map<QINDEX,multimap<double,string,std::greater<double>>> e_RankInfo; // save final ranklist // e is for entity
             Act_Func m_actfunc;
+            Act_Func e_actfunc; // e is for entity
             double NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const vector<RMatrixXd> & vW1,const VectorXd & vW2,const vector<VectorXd> & vW3,vector<RMatrixXd> & vW1_gd,VectorXd & vW2_gd,vector<VectorXd> & vW3_gd,bool bTrain, int wordOrEntity = 0);
         public:
             inline NN4IR(double w1_lr=0.02, double w2_lr=0.002, int minibatch=20, _enActivationType functype=_enActivationType::TANH, bool calallQ=false, int wordOrEntity = 0):m_lr_w1(w1_lr),m_lr_w2(w2_lr), m_actfunc(functype), m_CalAllQ(calallQ){}

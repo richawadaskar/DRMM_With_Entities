@@ -174,7 +174,8 @@ void NN4IR::InitWordVec(const std::string & sfilename,bool binary, int wordOrEnt
 }
 void NN4IR::InitCorpInfo(const std::string & sDFCFfile,long long docNum, int wordOrEntity == 0){
     if(wordOrEntity == 0)    m_N = docNum;
-
+    
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
     if(wordOrEntity == 0)    e_N = docNum;
     LoadTermDFCF(sDFCFfile);
 }
@@ -616,11 +617,11 @@ void NN4IR::LoadTermDFCF(const std::string &sfilename, int wordOrEntity = 0){
             ++e_VocabSize;
         }
     }
-    if(wordOrentity == 0)
+    if(wordOrEntity == 0)
         MSGPrint("Init Term DF & CF finished, vocab size:%d.\n", m_words.size());
 
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
-    if(wordOrentity == 1)
+    if(wordOrEntity == 1)
         MSGPrint("Init Term DF & CF finished, vocab size:%d.\n", e_words.size());
 
     fflush(stdout);
@@ -721,7 +722,8 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
         return false;
     }
 
-    if(wordOrEntity == 0 and e_relinfo[qindex].m_numofpos <= 0){
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1 and e_relinfo[qindex].m_numofpos <= 0){
         return false;
     }
 
@@ -734,7 +736,7 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
         if( wordOrEntity == 0 && (m_relinfo[qindex].m_docrel.find(iter->first) != m_relinfo[qindex].m_docrel.end()))  clabel = m_relinfo[qindex].m_docrel[iter->first];
 
         // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
-        if(wordOrEntity == 1 &&(e_relinfo[qindex].m_docrel.find(iter->first) != e_relinfo[qindex].m_docrel.end()))  clabel = e_relinfo[qindex].m_docrel[iter->first];
+        if(wordOrEntity == 1 && (e_relinfo[qindex].m_docrel.find(iter->first) != e_relinfo[qindex].m_docrel.end()))  clabel = e_relinfo[qindex].m_docrel[iter->first];
         //clabel = clabel >= relevance_level ? clabel : 0;
         resinfo[inum].first = clabel;
         resinfo[inum].second = iter->second;
@@ -1161,9 +1163,14 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
         for(b = 0 ; b < vecFolds[a].size(); ++ b){
             QINDEX qIndex = vecFolds[a][b];
             omp_set_lock(&lock);
-            if(m_RankInfo.find(qIndex) == m_RankInfo.end()) m_RankInfo.insert(make_pair(qIndex,multimap<double,string,std::greater<double>>()));
+            if(wordOrEntity==0 && m_RankInfo.find(qIndex) == m_RankInfo.end()) m_RankInfo.insert(make_pair(qIndex,multimap<double,string,std::greater<double>>()));
+
+// SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            if(wordOrEntity==1 && e_RankInfo.find(qIndex) == e_RankInfo.end()) e_RankInfo.insert(make_pair(qIndex,multimap<double,string,std::greater<double>>()));
+
             omp_unset_lock(&lock);
             unordered_map<string,double> currscore;
+
             if(wordOrEntity == 0) {
               assert(m_dataset.find(qIndex) != m_dataset.end());
               for(auto iter = m_dataset[qIndex].begin(); iter != m_dataset[qIndex].end(); ++ iter){
@@ -1197,7 +1204,7 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
                   VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
                   double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1_best,m_vW2_best,m_vW3_best,vW1_pgd,vW2_pgd,vW3_pgd,false);
                   omp_set_lock(&lock);
-                  m_RankInfo[qIndex].insert(make_pair(score,*iter));
+                  e_RankInfo[qIndex].insert(make_pair(score,*iter));
                   omp_unset_lock(&lock);
                   currscore.insert(make_pair(*iter,score));
                   assert(e_dataset.find(qIndex) != e_dataset.end());
@@ -1210,7 +1217,12 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
             cTestRes += tmpeval;
             if(!m_CalAllQ && bvalidq){
                 ++iValidTestQuery;
-            }else{
+            }
+            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            else if(!e_CalAllQ && bvalidq){
+                ++iValidTestQuery;
+            }
+            else{
                 ++iValidTestQuery;
             }
         }
@@ -1313,33 +1325,58 @@ double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const
             vHi[0](b) = log10(mm(a,b) + 1);
         }
         //feed forward
-        for(b = 1 ; b < vW1Size + 1; ++ b){
-            vHi[b].setZero();
-            vHi[b] = vHi[b-1] * vW1[b-1] + vW3[b-1];
-            vHi[b] = m_actfunc.forward(vHi[b]);
+        if(wordOrEntity == 0){
+            for(b = 1 ; b < vW1Size + 1; ++ b){
+                vHi[b].setZero();
+                vHi[b] = vHi[b-1] * vW1[b-1] + vW3[b-1];
+                vHi[b] = m_actfunc.forward(vHi[b]);
+            }
         }
+
+        else{// SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+            for(b = 1 ; b < vW1Size + 1; ++ b){
+                vHi[b].setZero();
+                vHi[b] = vHi[b-1] * vW1[b-1] + vW3[b-1];
+                vHi[b] = e_actfunc.forward(vHi[b]);
+            }
+        }
+
         score += vHi[vW1Size](0) * vQWeight(a);
         //backpropagation
-        if(bTrain){
-            for(b = vW1Size; b > 0; --b){
-                sigma[b-1].setZero();
-                if(b == vW1Size){
-                    VectorXd f_gd = m_actfunc.backward(vHi[b]);
-                    sigma[b-1] = vQWeight(a) * f_gd;
-                }else{
-                    VectorXd f_gd = m_actfunc.backward(vHi[b]);
-                    sigma[b-1] = (sigma[b] * vW1[b].transpose()).cwiseProduct(f_gd);
+        if(wordOrEntity == 0){
+            if(bTrain){
+                for(b = vW1Size; b > 0; --b){
+                    sigma[b-1].setZero();
+                    if(b == vW1Size){
+                        VectorXd f_gd = m_actfunc.backward(vHi[b]);
+                        sigma[b-1] = vQWeight(a) * f_gd;
+                    }else{
+                        VectorXd f_gd = m_actfunc.backward(vHi[b]);
+                        sigma[b-1] = (sigma[b] * vW1[b].transpose()).cwiseProduct(f_gd);
+                    }
+                    vW1_gd[b-1] += vHi[b-1].transpose() * sigma[b-1];
+                    vW3_gd[b-1] += sigma[b-1];
                 }
-                vW1_gd[b-1] += vHi[b-1].transpose() * sigma[b-1];
-                vW3_gd[b-1] += sigma[b-1];
+                  vW2_gd(0) += vHi[vW1Size](0) * vQWeight(a) * ((m_vocab[cqword].m_idf) - vW2_gd_tmp(0));
             }
-            if(wordOrEntity == 0) {
-              vW2_gd(0) += vHi[vW1Size](0) * vQWeight(a) * ((m_vocab[cqword].m_idf) - vW2_gd_tmp(0));
-            }
-
-            // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
-            if(wordOrEntity == 1) {
-              vW2_gd(0) += vHi[vW1Size](0) * vQWeight(a) * ((e_vocab[cqword].m_idf) - vW2_gd_tmp(0));
+        }
+       
+        // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+        else{
+            if(bTrain){
+                for(b = vW1Size; b > 0; --b){
+                    sigma[b-1].setZero();
+                    if(b == vW1Size){
+                        VectorXd f_gd = e_actfunc.backward(vHi[b]);
+                        sigma[b-1] = vQWeight(a) * f_gd;
+                    }else{
+                        VectorXd f_gd = e_actfunc.backward(vHi[b]);
+                        sigma[b-1] = (sigma[b] * vW1[b].transpose()).cwiseProduct(f_gd);
+                    }
+                    vW1_gd[b-1] += vHi[b-1].transpose() * sigma[b-1];
+                    vW3_gd[b-1] += sigma[b-1];
+                }
+                  vW2_gd(0) += vHi[vW1Size](0) * vQWeight(a) * ((e_vocab[cqword].m_idf) - vW2_gd_tmp(0));
             }
         }
     }
@@ -1357,7 +1394,7 @@ void NN4IR::GetRanklist(const char* filename, int wordOrEntity = 0){
             }
         }
     }
-
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
     if (wordOrEntity == 1){
         for(auto itQ = e_RankInfo.begin(); itQ != e_RankInfo.end(); ++ itQ){
             int irank = 0;
