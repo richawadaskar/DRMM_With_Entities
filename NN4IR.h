@@ -152,27 +152,27 @@ namespace nsnn4ir{
             unordered_map<QINDEX,multimap<double,string,std::greater<double>>> e_RankInfo; // save final ranklist // e is for entity
             Act_Func m_actfunc;
             Act_Func e_actfunc; // e is for entity
-            double NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const vector<RMatrixXd> & vW1,const VectorXd & vW2,const vector<VectorXd> & vW3,vector<RMatrixXd> & vW1_gd,VectorXd & vW2_gd,vector<VectorXd> & vW3_gd,bool bTrain, int wordOrEntity = 0);
+            double NNScore_LCH_IDF(int wordOrEntity, const QINDEX & qindex,const string & currdoc,const vector<RMatrixXd> & vW1,const VectorXd & vW2,const vector<VectorXd> & vW3,vector<RMatrixXd> & vW1_gd,VectorXd & vW2_gd,vector<VectorXd> & vW3_gd,bool bTrain);
         public:
-            inline NN4IR(double w1_lr=0.02, double w2_lr=0.002, int minibatch=20, _enActivationType functype=_enActivationType::TANH, bool calallQ=false, int wordOrEntity = 0):m_lr_w1(w1_lr),m_lr_w2(w2_lr), m_actfunc(functype), m_CalAllQ(calallQ){}
+            inline NN4IR(double w1_lr=0.02, double w2_lr=0.002, int minibatch=20, _enActivationType functype=_enActivationType::TANH, bool calallQ=false):m_lr_w1(w1_lr),m_lr_w2(w2_lr), m_actfunc(functype), m_CalAllQ(calallQ){}
             virtual ~NN4IR();
-            void RunningMultiThread(int nFold = 5,int maxiter=10, int wordOrEntity = 0);
-            void InitWordVec(const std::string &svecfile,bool binary = false, int wordOrEntity = 0); //USES CONDITION
-            void InitDocCorp(const std::string & sDocFile,int wordOrEntity = 0); // USES CONDITION
-            void InitQueryCorp(const std::string & sQueryFile, int wordOrEntity = 0); // USES CONDITION
-            void InitCorpInfo(const std::string & sDFfile,long long docNum = 1247753, int wordOrEntity == 0); // USES CONDITION
-            void LoadDataSet(const std::string &sfilenames,int topk = 1000,int pernegative=100,int num_of_instance=100, int wordOrEntity = 0); //USES CONDTION
-            void InitGroundTruth(const std::string &sDocFile,const std::string & sIDCGFile,double relevance_level, int wordOrEntity = 0); // USES CONDITION
-            void setDataSet(const _enDataType & t, int wordOrEntity = 0){ m_DataType = t;}
-            void InitTopKNeiB(int wordOrEntity = 0);
-            void EvaluateFile(const std::string & sfilename); // COMMON FUNCTION NO CONDITION NEEDED
-            void GetRanklist(const char* sfilename, int wordOrEntity = 0);
+            void RunningMultiThread(int wordOrEntity,int nFold = 5,int maxiter=10);
+            void InitWordVec(int wordOrEntity, const std::string &svecfile,bool binary = false); //USES CONDITION
+            void InitDocCorp(int wordOrEntity, const std::string & sDocFile); // USES CONDITION
+            void InitQueryCorp(int wordOrEntity, const std::string & sQueryFile); // USES CONDITION
+            void InitCorpInfo(int wordOrEntity, const std::string & sDFfile,long long docNum = 1247753); // USES CONDITION
+            void LoadDataSet(int wordOrEntity, const std::string &sfilenames,int topk = 1000,int pernegative=100,int num_of_instance=100); //USES CONDTION
+            void InitGroundTruth(int wordOrEntity, const std::string &sDocFile,const std::string & sIDCGFile,double relevance_level); // USES CONDITION
+            void setDataSet(int wordOrEntity, const _enDataType & t){ m_DataType = t;}
+            void InitTopKNeiB(int wordOrEntity);
+            void EvaluateFile(int wordOrEntity, const std::string & sfilename);
+            void GetRanklist(int wordOrEntity, const char* sfilename);
         private:
             NN4IR(const NN4IR &) = delete;
             NN4IR & operator=(const NN4IR &) = delete;
-            void LoadTermDFCF(const std::string &sfilename="../../data/gov.content.word_df", int wordOrEntity = 0);
-            bool Simi_evaluate(const double relevance_level,const QINDEX & qindex,const unordered_map<string,double> & scores,int evaluatenum ,int topk,_stIRResult & eval, int wordOrEntity = 0);
-            void kFold(vector<QINDEX> vecQindex,vector<vector<QINDEX>> & vecTrain,int nFold=5,bool shuffle=true, int wordOrEntity = 0);
+            void LoadTermDFCF(int wordOrEntity, const std::string &sfilename="../../data/gov.content.word_df");
+            bool Simi_evaluate(int wordOrEntity, const double relevance_level,const QINDEX & qindex,const unordered_map<string,double> & scores,int evaluatenum ,int topk,_stIRResult & eval);
+            void kFold(vector<QINDEX> vecQindex,vector<vector<QINDEX>> & vecTrain,int nFold=5,bool shuffle=true);
             void BruceKFold(vector<QINDEX> vecQIndex,vector<vector<QINDEX>> &vecTrain); // COMMON FUNCTION NO CONDITION
     };
 }

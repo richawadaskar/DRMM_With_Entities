@@ -49,7 +49,7 @@ void NN4IR::BruceKFold(vector<QINDEX> vecQIndex,vector<vector<QINDEX>> &vecTrain
 NN4IR::~NN4IR(){
 }
 // It reads word embedding file here and processes word and embedding space of it!
-void NN4IR::InitWordVec(const std::string & sfilename,bool binary, int wordOrEntity = 0){
+void NN4IR::InitWordVec(int wordOrEntity,const std::string & sfilename,bool binary){
     if(binary){
         long long row,col;
         FILE *f = fopen(sfilename.c_str(),"rb");
@@ -172,14 +172,14 @@ void NN4IR::InitWordVec(const std::string & sfilename,bool binary, int wordOrEnt
         }
     }
 }
-void NN4IR::InitCorpInfo(const std::string & sDFCFfile,long long docNum, int wordOrEntity == 0){
+void NN4IR::InitCorpInfo(int wordOrEntity,const std::string & sDFCFfile,long long docNum){
     if(wordOrEntity == 0)    m_N = docNum;
     
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
     if(wordOrEntity == 0)    e_N = docNum;
-    LoadTermDFCF(sDFCFfile);
+    LoadTermDFCF(wordOrEntity, sDFCFfile);
 }
-void NN4IR::InitDocCorp(const std::string & sDocFile, int wordOrEntity = 0){
+void NN4IR::InitDocCorp(int wordOrEntity, const std::string & sDocFile){
     if( wordOrEntity == 0){
         assert(!m_vocab.empty() && !m_words.empty());
     }
@@ -251,7 +251,7 @@ void NN4IR::InitDocCorp(const std::string & sDocFile, int wordOrEntity = 0){
 
     fflush(stdout);
 }
-void NN4IR::InitQueryCorp(const std::string & sQueryFile, int wordOrEntity = 0){
+void NN4IR::InitQueryCorp(int wordOrEntity,const std::string & sQueryFile){
     if(wordOrEntity == 0){
         assert(!m_words.empty() && !m_vocab.empty());
     }
@@ -322,7 +322,7 @@ void NN4IR::InitQueryCorp(const std::string & sQueryFile, int wordOrEntity = 0){
 
     fflush(stdout);
 }
-void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,int num_of_instance, int wordOrEntity = 0){ // takes dataset to be re ranked
+void NN4IR::LoadDataSet(int wordOrEntity,const std::string &sfilename,int topk,int pernegative,int num_of_instance){ // takes dataset to be re ranked
     ifstream fin(sfilename.c_str());
     if(!fin){
 		throw MyError(" Error: open ranklist file failed!");
@@ -450,7 +450,7 @@ void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,in
             map<double,vector<string>,std::greater<double>> currsamples;
             int num_pos_currquery = 0;
             for(auto viter = iter->second.begin(); viter != iter->second.end(); ++ viter){ //looking for matching of document word for reranking
-                if(e_DocCorp.find(*viter) == e_DocCorp.end() || e_DocCorp[*viter].e_docword.size() <= 0) continue;
+                if(e_DocCorp.find(*viter) == e_DocCorp.end() || e_DocCorp[*viter].m_docword.size() <= 0) continue;
                 double currlabel = 0.0;
                 if(e_relinfo[cqindex].m_docrel.find(*viter) != e_relinfo[cqindex].m_docrel.end()){
                     currlabel = e_relinfo[cqindex].m_docrel[*viter];
@@ -502,7 +502,7 @@ void NN4IR::LoadDataSet(const std::string &sfilename,int topk,int pernegative,in
 
     fflush(stdout);
 }
-void NN4IR::InitGroundTruth(const std::string &sRelFile,const std::string &sIDCGFile,double relevance_level, int wordOrEntity = 0){
+void NN4IR::InitGroundTruth(int wordOrEntity,const std::string &sRelFile,const std::string &sIDCGFile,double relevance_level){
     string sline;
     ifstream fin0(sIDCGFile.c_str(),ios::in);
     if(!fin0){
@@ -576,7 +576,7 @@ void NN4IR::InitGroundTruth(const std::string &sRelFile,const std::string &sIDCG
 
     fflush(stdout);
 }
-void NN4IR::LoadTermDFCF(const std::string &sfilename, int wordOrEntity = 0){
+void NN4IR::LoadTermDFCF(int wordOrEntity,const std::string &sfilename){
     fstream fin(sfilename,std::ios::in);
     if(!fin){
 		throw MyError(" Error: open term df&cf file failed!");
@@ -643,7 +643,7 @@ void NN4IR::kFold(vector<QINDEX> vecQIndex,vector<vector<QINDEX>> & vecTrain,int
     }
 }
 
-void NN4IR::InitTopKNeiB(int wordOrEntity = 0){
+void NN4IR::InitTopKNeiB(int wordOrEntity){
     if(wordOrEntity == 0){
         m_QTopKNeighbor.clear();
         unordered_set<WINDEX> allquerywords;
@@ -711,7 +711,7 @@ void NN4IR::InitTopKNeiB(int wordOrEntity = 0){
     fflush(stdout);
 }
 
-bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,const unordered_map<string,double> & scores,int evaluatenum ,int topk,_stIRResult &evalres, int wordOrEntity = 0){
+bool NN4IR::Simi_evaluate(int wordOrEntity, const double relevance_level,const QINDEX & qindex,const unordered_map<string,double> & scores,int evaluatenum ,int topk,_stIRResult &evalres){
     if(wordOrEntity == 0 && m_relinfo[qindex].m_numofpos <= 0)   return false;
 
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
@@ -802,7 +802,7 @@ bool NN4IR::Simi_evaluate(const double relevance_level,const QINDEX & qindex,con
     return true;
 }
 // This below doesnt need the change of word or entity
-void NN4IR::EvaluateFile(const std::string & sfilename){
+void NN4IR::EvaluateFile(int wordOrEntity,const std::string & sfilename){
     ifstream fin(sfilename.c_str());
     if(!fin){
 		throw MyError(" Error: open evaluation file failed!");
@@ -834,7 +834,7 @@ void NN4IR::EvaluateFile(const std::string & sfilename){
         for(size_t i = 0 ; i < iter->second.size(); ++ i)
             currscore.insert(make_pair(iter->second[i].first,iter->second[i].second));
         _stIRResult tmpeval;
-        if(Simi_evaluate(1,iter->first,currscore,1000,20,std::ref(tmpeval))){
+        if(Simi_evaluate(wordOrEntity,1,iter->first,currscore,1000,20,std::ref(tmpeval))){
             eval += tmpeval;
             ++ valid_topic_num;
         //}else{
@@ -844,26 +844,32 @@ void NN4IR::EvaluateFile(const std::string & sfilename){
     eval /= valid_topic_num;
     MSGPrint("Evaluating Result: valid-topic-num:%d, map:%.4f, P@k:%.4f, nDCG@k:%.4f, ERR@k:%.4f\n",valid_topic_num,eval.m_map,eval.m_patk,eval.m_ndcg,eval.m_erratk);
 }
-void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
+void NN4IR::RunningMultiThread(int wordOrEntity, int nFold,int maxiter){
     if((wordOrEntity == 0 && m_dataset.empty()) || (wordOrEntity == 1 && e_dataset.empty())){
       throw MyError(" Error: no dataset found!");
       return;
     }
     long a=0,b=0,c=0;
-    if(wordOrEntity == 0){
-        vector<QINDEX> vecQIndex(m_dataset.size());
+    vector<QINDEX> vecQIndex(m_dataset.size());
+    vector<QINDEX> vecQIndex_entity(e_dataset.size());
+    if(wordOrEntity == 0){    
         for(auto iter = m_dataset.begin(); iter != m_dataset.end(); ++ iter) 
             vecQIndex[a++] = iter->first;
     }
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
     if(wordOrEntity == 1) {
-        vector<QINDEX> vecQIndex(e_dataset.size());
         for(auto iter = e_dataset.begin(); iter != e_dataset.end(); ++ iter) 
-            vecQIndex[a++] = iter->first;
+            vecQIndex_entity[a++] = iter->first;
     }
 
     vector<vector<QINDEX>> vecFolds;
-    BruceKFold(vecQIndex,vecFolds);
+    if(wordOrEntity == 0){
+        BruceKFold(vecQIndex,vecFolds);
+    }
+    // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
+    if(wordOrEntity == 1){
+        BruceKFold(vecQIndex_entity,vecFolds);    
+    }
     //const int nVecDim = m_W.begin()->second.size();
     const int nVecDim = 2; //term gating paramerter size
 
@@ -965,8 +971,8 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
                       }
                       VectorXd vW2_pgd = VectorXd::Zero(nVecDim),vW2_ngd = VectorXd::Zero(nVecDim);
                       double score1 = 0, score2 = 0;
-                      score1 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.first,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,true); //positive score
-                      score2 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.second,m_vW1,m_vW2,m_vW3,vW1_ngd,vW2_ngd,vW3_ngd,true); //negative score
+                      score1 = NNScore_LCH_IDF(wordOrEntity,curr_instance.first,curr_instance.second.first,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,true); //positive score
+                      score2 = NNScore_LCH_IDF(wordOrEntity,curr_instance.first,curr_instance.second.second,m_vW1,m_vW2,m_vW3,vW1_ngd,vW2_ngd,vW3_ngd,true); //negative score
                       double currloss = 0.1 - score1 + score2;
                       if(currloss > 0){ //calculate gradient , update parameters
                           for(long d = 0 ; d < vW1Size; ++ d){
@@ -998,8 +1004,8 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
                       }
                       VectorXd vW2_pgd = VectorXd::Zero(nVecDim),vW2_ngd = VectorXd::Zero(nVecDim);
                       double score1 = 0, score2 = 0;
-                      score1 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.first,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,true); //positive score
-                      score2 = NNScore_LCH_IDF(curr_instance.first,curr_instance.second.second,m_vW1,m_vW2,m_vW3,vW1_ngd,vW2_ngd,vW3_ngd,true); //negative score
+                      score1 = NNScore_LCH_IDF(wordOrEntity,curr_instance.first,curr_instance.second.first,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,true); //positive score
+                      score2 = NNScore_LCH_IDF(wordOrEntity,curr_instance.first,curr_instance.second.second,m_vW1,m_vW2,m_vW3,vW1_ngd,vW2_ngd,vW3_ngd,true); //negative score
                       double currloss = 0.1 - score1 + score2;
                       if(currloss > 0){ //calculate gradient , update parameters
                           for(long d = 0 ; d < vW1Size; ++ d){
@@ -1108,7 +1114,7 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
                                   vW3_pgd[d].setZero();
                               }
                               VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
-                              double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,false);
+                              double score = NNScore_LCH_IDF(wordOrEntity,qIndex,*iter,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,false);
                               currscore.insert(make_pair(*iter,score));
                           }
                         }
@@ -1124,13 +1130,13 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
                                   vW3_pgd[d].setZero();
                               }
                               VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
-                              double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,false);
+                              double score = NNScore_LCH_IDF(wordOrEntity,qIndex,*iter,m_vW1,m_vW2,m_vW3,vW1_pgd,vW2_pgd,vW3_pgd,false);
                               currscore.insert(make_pair(*iter,score));
                           }
                         }
 
                         _stIRResult tmpeval;
-                        bool bvalidq = Simi_evaluate(1,qIndex,currscore,1000,20,std::ref(tmpeval));
+                        bool bvalidq = Simi_evaluate(wordOrEntity,1,qIndex,currscore,1000,20,std::ref(tmpeval));
                         currTestRes += tmpeval;
                         if(wordOrEntity == 0 && !m_CalAllQ && bvalidq){
                             ++iValidTestQuery;
@@ -1182,7 +1188,7 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
                       vW3_pgd[d].setZero();
                   }
                   VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
-                  double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1_best,m_vW2_best,m_vW3_best,vW1_pgd,vW2_pgd,vW3_pgd,false);
+                  double score = NNScore_LCH_IDF(wordOrEntity,qIndex,*iter,m_vW1_best,m_vW2_best,m_vW3_best,vW1_pgd,vW2_pgd,vW3_pgd,false);
                   omp_set_lock(&lock);
                   m_RankInfo[qIndex].insert(make_pair(score,*iter));
                   omp_unset_lock(&lock);
@@ -1202,7 +1208,7 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
                       vW3_pgd[d].setZero();
                   }
                   VectorXd vW2_pgd = VectorXd::Zero(nVecDim);
-                  double score = NNScore_LCH_IDF(qIndex,*iter,m_vW1_best,m_vW2_best,m_vW3_best,vW1_pgd,vW2_pgd,vW3_pgd,false);
+                  double score = NNScore_LCH_IDF(wordOrEntity,qIndex,*iter,m_vW1_best,m_vW2_best,m_vW3_best,vW1_pgd,vW2_pgd,vW3_pgd,false);
                   omp_set_lock(&lock);
                   e_RankInfo[qIndex].insert(make_pair(score,*iter));
                   omp_unset_lock(&lock);
@@ -1213,7 +1219,7 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
 
 
             _stIRResult tmpeval;
-            bool bvalidq = Simi_evaluate(1,qIndex,currscore,1000,20,std::ref(tmpeval));
+            bool bvalidq = Simi_evaluate(wordOrEntity,1,qIndex,currscore,1000,20,std::ref(tmpeval));
             cTestRes += tmpeval;
             if(!m_CalAllQ && bvalidq){
                 ++iValidTestQuery;
@@ -1245,24 +1251,25 @@ void NN4IR::RunningMultiThread(int nFold,int maxiter, int wordOrEntity){
     return ;
 }
 
-double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const vector<RMatrixXd> & vW1,const VectorXd & vW2,const vector<VectorXd> & vW3,vector<RMatrixXd> & vW1_gd,VectorXd & vW2_gd,vector<VectorXd> & vW3_gd,bool bTrain, int wordOrEntity){
+double NN4IR::NNScore_LCH_IDF(int wordOrEntity,const QINDEX & qindex,const string & currdoc,const vector<RMatrixXd> & vW1,const VectorXd & vW2,const vector<VectorXd> & vW3,vector<RMatrixXd> & vW1_gd,VectorXd & vW2_gd,vector<VectorXd> & vW3_gd,bool bTrain){
     assert(vW1.size() == vW1_gd.size() && vW2.size() == vW2_gd.size() && vW3.size() == vW3_gd.size() && vW1.size() == vW3.size());
     long a,b,c,d,e;
     double eps = 1e-4;
     double score = 0;
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
-    const int nQSize = (wordOrEntity == 0)? m_seqQueryCorp[qindex].size() : e_seqQueryCorp[qIndex].size();
+    const int nQSize = (wordOrEntity == 0)? m_seqQueryCorp[qindex].size() : e_seqQueryCorp[qindex].size();
     const int nVecDim = vW2.size();
     const int vW1Size = vW1.size();
     assert(vW1Size > 0 );
-    const vector<WINDEX> & currsequence;
-    if(wordOrEntity == 0){
-      currsequence = m_DocCorp[currdoc].m_docword;
-    }
+    
+    // below vector is a const vector
+    vector<WINDEX> & currsequence = m_DocCorp[currdoc].m_docword;
+
     // SEPERATE CONDTION FOR ENTITY HAS BEEN ADDED..............................................................
     if(wordOrEntity == 1){
       currsequence = e_DocCorp[currdoc].m_docword;
     }
+
     const int iDocLen = currsequence.size();
     if(iDocLen == 0 || nQSize == 0){
       return std::numeric_limits<double>::lowest();
@@ -1383,7 +1390,7 @@ double NN4IR::NNScore_LCH_IDF(const QINDEX & qindex,const string & currdoc,const
     return score;
 }
 
-void NN4IR::GetRanklist(const char* filename, int wordOrEntity = 0){
+void NN4IR::GetRanklist(int wordOrEntity, const char* filename){
     ofstream fout(filename, ios::out);
     if (wordOrEntity == 0){
         for(auto itQ = m_RankInfo.begin(); itQ != m_RankInfo.end(); ++ itQ){
