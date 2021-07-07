@@ -12,7 +12,10 @@
 void test();
 int ArgPos(char *str, int argc, char **argv);
 
+// CHANGES HAVE BEEN MADE IN FUNCTION CALL BY MAYURESH
+
 int main(int argc,char * argv[]){
+    int wordOrEntity = 0; //line added by Mayuresh
     omp_set_num_threads(23);
     omp_init_lock(&lock);
     int i = -1;
@@ -41,20 +44,20 @@ int main(int argc,char * argv[]){
     nsnn4ir::_enActivationType activation_func_type = nsnn4ir::_enActivationType(nsnn4ir::Config::GetConfigInstance().iValue("ACTIVATION_FUNC_TYPE"));
 
     nsnn4ir::NN4IR  * pweor = new nsnn4ir::NN4IR(lr_w1, lr_w2, mini_batch, activation_func_type, cal_all_q);
-    pweor->setDataSet(task_type);
-    pweor->InitGroundTruth(qrel_file,qrel_idcg_file,1);
-    pweor->InitCorpInfo(corpus_term_dfcf_file,corpus_doc_count);
-    pweor->InitQueryCorp(query_data_file);
-    pweor->InitDocCorp(doc_data_file);
-    pweor->LoadDataSet(rerank_data_file,sample_total_limited,sample_perpositive_limited,sample_perquery_limited);
-    pweor->InitWordVec(word_embed_file,true); // initial word embedding
-    pweor->InitTopKNeiB(); // calculate word similarity in advance
+    pweor->setDataSet(wordOrEntity,task_type);
+    pweor->InitGroundTruth(wordOrEntity,qrel_file,qrel_idcg_file,1);
+    pweor->InitCorpInfo(wordOrEntity,corpus_term_dfcf_file,corpus_doc_count);
+    pweor->InitQueryCorp(wordOrEntity, query_data_file);
+    pweor->InitDocCorp(wordOrEntity,doc_data_file);
+    pweor->LoadDataSet(wordOrEntity,rerank_data_file,sample_total_limited,sample_perpositive_limited,sample_perquery_limited);
+    pweor->InitWordVec(wordOrEntity,word_embed_file,true); // initial word embedding 
+    pweor->InitTopKNeiB(wordOrEntity); // calculate word similarity in advance
 
-    pweor->RunningMultiThread(fold_size,max_iteration); //simi
-    pweor->GetRanklist(save_ranklist_file.c_str());
+    pweor->RunningMultiThread(wordOrEntity,fold_size,max_iteration); //simi
+    pweor->GetRanklist(wordOrEntity,save_ranklist_file.c_str());
     delete pweor;
     pweor = NULL;
-    cout<<"Done ....\n"<<endl;
+    cout<<"Done ....\n";
     return 0;
 }
 
